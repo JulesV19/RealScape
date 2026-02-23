@@ -274,13 +274,13 @@
             :class="{ 'opacity-50': !includeOSM }">
             <input type="checkbox" v-model="exports.osmTexture" :disabled="!includeOSM"
               class="accent-[#FF6600] w-3.5 h-3.5" />
-            OSM Texture (16K PNG)
+            OSM Texture (up to 8192×8192 PNG)
           </label>
           <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300"
             :class="{ 'opacity-50': !includeOSM }">
             <input type="checkbox" v-model="exports.hybridTexture" :disabled="!includeOSM"
               class="accent-[#FF6600] w-3.5 h-3.5" />
-            Hybrid Texture (16K PNG)
+            Hybrid Texture (up to 8192×8192 PNG)
           </label>
           <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
             <input type="checkbox" v-model="exports.segmentedSatellite" class="accent-[#FF6600] w-3.5 h-3.5" />
