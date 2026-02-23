@@ -73,6 +73,7 @@
         <ControlPanel 
           v-if="!batchMode"
           :center="center" 
+          :zoom="zoom"
           :resolution="resolution"
           :terrain-data="terrainData"
           :is-generating="isLoading"

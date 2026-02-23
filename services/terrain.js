@@ -1,4 +1,4 @@
-import { fetchOSMData } from "./osm";
+import { fetchOSMData, getLastOSMRequestInfo, getOSMQueryParameters } from "./osm";
 import { generateOSMTexture, generateHybridTexture, generateSegmentedHybridTexture } from "./osmTexture";
 import { segmentSatelliteTexture } from "./segmentation";
 import * as GeoTIFF from "geotiff";
@@ -833,10 +833,18 @@ export const fetchTerrainData = async (
 
   // 7. Fetch OSM Data
   let osmFeatures = [];
+  let osmRequestInfo = null;
   if (includeOSM) {
     signal?.throwIfAborted();
     onProgress?.("Fetching OpenStreetMap data...");
     osmFeatures = await fetchOSMData(finalBounds);
+    osmRequestInfo = getLastOSMRequestInfo() || {
+      ...getOSMQueryParameters(finalBounds),
+      endpointUsed: null,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      elementCount: 0,
+    };
   }
 
   onProgress?.("Finalizing terrain data...");
@@ -861,6 +869,7 @@ export const fetchTerrainData = async (
     satelliteTextureUrl,
     bounds: finalBounds,
     osmFeatures,
+    osmRequestInfo,
     usgsFallback,
     sourceGeoTiffs,
   };
@@ -924,8 +933,15 @@ export const addOSMToTerrain = async (
 ) => {
   onProgress?.("Fetching OpenStreetMap data...");
   const osmFeatures = await fetchOSMData(terrainData.bounds);
+  const osmRequestInfo = getLastOSMRequestInfo() || {
+    ...getOSMQueryParameters(terrainData.bounds),
+    endpointUsed: null,
+    startedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    elementCount: 0,
+  };
 
-  const newTerrainData = { ...terrainData, osmFeatures };
+  const newTerrainData = { ...terrainData, osmFeatures, osmRequestInfo };
 
   if (osmFeatures.length > 0) {
     const options = { Roads: true, baseColor, onProgress };

@@ -345,6 +345,41 @@
 
     <!-- Action Buttons -->
     <div class="space-y-2">
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          @click="copyRunConfiguration"
+          class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+        >
+          Copy Configuration
+        </button>
+        <button
+          @click="pasteRunConfiguration"
+          class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+        >
+          Paste Configuration
+        </button>
+        <button
+          @click="saveRunConfiguration"
+          class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+        >
+          Save Configuration
+        </button>
+        <button
+          @click="runConfigFileInput?.click()"
+          class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+        >
+          Load Configuration
+        </button>
+        <input
+          ref="runConfigFileInput"
+          type="file"
+          accept="application/json,.json"
+          class="hidden"
+          @change="handleRunConfigFile"
+        />
+      </div>
+      <p v-if="runConfigStatus" class="text-[10px] text-gray-500 dark:text-gray-400">{{ runConfigStatus }}</p>
+
       <button @click="handleStart" :disabled="selectedExportCount === 0 || isRunning || (elevationSource === 'gpxz' && !gpxzApiKey)"
         class="w-full py-3 font-bold rounded-md shadow-lg flex items-center justify-center gap-2 transition-all bg-[#FF6600] hover:bg-[#E65C00] text-white shadow-orange-900/10 disabled:opacity-50 disabled:cursor-not-allowed">
         <Play :size="16" />
@@ -373,6 +408,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { Grid3X3, Box, Trees, Mountain, MapPin, Download, ChevronDown, Play, RotateCcw, X, AlertTriangle } from 'lucide-vue-next';
 import LocationSearch from './LocationSearch.vue';
 import { probeGPXZLimits } from '../services/terrain';
+import { cloneRateLimitInfo, downloadJsonFile } from '../services/traceability';
 
 const props = defineProps({
   center: { type: Object, required: true },
@@ -399,6 +435,8 @@ const isCheckingGPXZ = ref(false);
 const showElevationSource = ref(false);
 const showCoordinates = ref(false);
 const meshResolution = ref(parseInt(localStorage.getItem('mapng_batch_mesh')) || 256);
+const runConfigFileInput = ref(null);
+const runConfigStatus = ref('');
 
 // Export options
 const exports = ref({
@@ -503,9 +541,125 @@ const handleStart = () => {
     includeOSM: includeOSM.value,
     elevationSource: elevationSource.value,
     gpxzApiKey: gpxzApiKey.value,
+    gpxzStatus: gpxzStatus.value ? { ...gpxzStatus.value } : cloneRateLimitInfo(),
     glbMeshResolution: meshResolution.value,
     exports: { ...exports.value },
   });
+};
+
+const buildRunConfiguration = () => {
+  return {
+    schemaVersion: 1,
+    mode: 'batch',
+    center: { ...props.center },
+    resolution: props.resolution,
+    gridCols: gridCols.value,
+    gridRows: gridRows.value,
+    includeOSM: includeOSM.value,
+    elevationSource: elevationSource.value,
+    gpxzApiKey: gpxzApiKey.value || '',
+    gpxzStatus: gpxzStatus.value ? { ...gpxzStatus.value } : cloneRateLimitInfo(),
+    glbMeshResolution: meshResolution.value,
+    exports: { ...exports.value },
+  };
+};
+
+const copyRunConfiguration = async () => {
+  const payload = buildRunConfiguration();
+  const text = JSON.stringify(payload, null, 2);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      runConfigStatus.value = 'Run configuration copied to clipboard.';
+      return;
+    }
+  } catch {
+  }
+  runConfigStatus.value = 'Clipboard write unavailable in this browser/session.';
+};
+
+const pasteRunConfiguration = async () => {
+  try {
+    if (!navigator.clipboard?.readText) {
+      runConfigStatus.value = 'Clipboard read unavailable in this browser/session.';
+      return;
+    }
+    const text = await navigator.clipboard.readText();
+    if (!text?.trim()) {
+      runConfigStatus.value = 'Clipboard is empty.';
+      return;
+    }
+    const json = JSON.parse(text);
+    applyRunConfiguration(json);
+    runConfigStatus.value = 'Configuration pasted from clipboard.';
+  } catch (error) {
+    console.error('Failed to paste batch configuration:', error);
+    runConfigStatus.value = 'Clipboard content is not valid configuration JSON.';
+  }
+};
+
+const saveRunConfiguration = () => {
+  const payload = buildRunConfiguration();
+  downloadJsonFile(payload, `MapNG_BatchRunConfig_${new Date().toISOString().slice(0, 10)}.json`);
+  runConfigStatus.value = 'Configuration downloaded as JSON.';
+};
+
+const applyRunConfiguration = (config) => {
+  const src = config?.runConfiguration || config;
+  if (!src || typeof src !== 'object') throw new Error('Invalid JSON schema');
+
+  if (src.center && Number.isFinite(src.center.lat) && Number.isFinite(src.center.lng)) {
+    emit('locationChange', { lat: src.center.lat, lng: src.center.lng });
+  }
+  if (Number.isFinite(src.resolution)) {
+    emit('resolutionChange', parseInt(src.resolution));
+  }
+  if (Number.isFinite(src.gridCols)) {
+    gridCols.value = Math.max(1, Math.min(20, parseInt(src.gridCols)));
+  }
+  if (Number.isFinite(src.gridRows)) {
+    gridRows.value = Math.max(1, Math.min(20, parseInt(src.gridRows)));
+  }
+  if (typeof src.includeOSM === 'boolean') {
+    includeOSM.value = src.includeOSM;
+  }
+  if (typeof src.elevationSource === 'string' && ['default', 'usgs', 'gpxz'].includes(src.elevationSource)) {
+    elevationSource.value = src.elevationSource;
+  }
+  if (typeof src.gpxzApiKey === 'string') {
+    gpxzApiKey.value = src.gpxzApiKey;
+  }
+  if (src.gpxzStatus && typeof src.gpxzStatus === 'object') {
+    gpxzStatus.value = { ...src.gpxzStatus };
+  }
+  if (Number.isFinite(src.glbMeshResolution)) {
+    meshResolution.value = parseInt(src.glbMeshResolution);
+  }
+  if (src.exports && typeof src.exports === 'object') {
+    Object.keys(exports.value).forEach((key) => {
+      if (typeof src.exports[key] === 'boolean') {
+        exports.value[key] = src.exports[key];
+      }
+    });
+  }
+};
+
+const handleRunConfigFile = async (event) => {
+  const input = event.target;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const json = JSON.parse(text);
+    applyRunConfiguration(json);
+    runConfigStatus.value = 'Configuration loaded. Start batch to rerun with these settings.';
+  } catch (error) {
+    console.error('Failed to load batch configuration:', error);
+    runConfigStatus.value = 'Invalid configuration file.';
+  } finally {
+    input.value = '';
+  }
 };
 
 // Sync center from parent

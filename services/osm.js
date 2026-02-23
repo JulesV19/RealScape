@@ -4,6 +4,26 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.private.coffee/api/interpreter",
 ];
 
+let lastOSMRequestInfo = null;
+
+export const getOSMQueryParameters = (bounds) => ({
+  endpointCandidates: [...OVERPASS_ENDPOINTS],
+  method: 'POST',
+  output: 'json',
+  timeoutSec: 180,
+  maxSize: 1073741824,
+  bbox: {
+    south: bounds.south,
+    west: bounds.west,
+    north: bounds.north,
+    east: bounds.east,
+  },
+});
+
+export const getLastOSMRequestInfo = () => {
+  return lastOSMRequestInfo ? { ...lastOSMRequestInfo } : null;
+};
+
 // --- Clipping Helpers ---
 
 // Check if a point is inside a half-plane defined by a boundary edge
@@ -905,6 +925,8 @@ export const fetchOSMData = async (bounds) => {
   );
 
   const query = buildQuery(bounds);
+  const queryParams = getOSMQueryParameters(bounds);
+  const startedAt = new Date().toISOString();
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
@@ -930,11 +952,27 @@ export const fetchOSMData = async (bounds) => {
       );
       console.log(data);
 
+      lastOSMRequestInfo = {
+        ...queryParams,
+        endpointUsed: endpoint,
+        status: response.status,
+        elementCount: data.elements?.length || 0,
+        startedAt,
+        completedAt: new Date().toISOString(),
+      };
+
       const features = parseOverpassResponse(data, bounds);
       console.log(`[OSM] Parsed ${features.length} features.`);
       return features;
     } catch (error) {
       console.error(`[OSM] Error fetching data from ${endpoint}:`, error);
+      lastOSMRequestInfo = {
+        ...queryParams,
+        endpointUsed: endpoint,
+        error: String(error?.message || error),
+        startedAt,
+        completedAt: new Date().toISOString(),
+      };
       // Wait a bit before trying the next one
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }

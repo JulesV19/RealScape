@@ -78,6 +78,8 @@ Unlike generic terrain tools, MapNG is purpose-built for vehicle simulation maps
 ### Additional Features
 - **"Mod of the Day"**: Displays the most recently updated map mod from BeamNG.com.
 - **Batch Job mode (Beta)**: Process grids of tiles (up to 20×20) with sequential processing, per-tile ZIP downloads, persistent state for pause/resume, and retry for failed tiles.
+- **Reproducibility tooling**: `Copy Configuration`, `Paste Configuration`, `Save Configuration` (JSON), and `Load Configuration` in both Single and Batch modes.
+- **Traceable exports**: Single-file exports also produce `*.metadata.json` sidecars containing build hash/time, bbox, resolution/zoom, texture availability, OSM query context, and GPXZ plan/rate-limit info.
 - **GPXZ plan auto-detection**: Probes rate-limit headers to enable concurrent requests for paid plans (Small: 8×, Large: 20×).
 - **Dark & light mode** with persistent localStorage preference.
 - **Automatic geolocation** on first visit (with graceful fallback).
@@ -163,7 +165,13 @@ npm run deploy
 5. **Export**: Use the export panel to download any combination of:
    - Heightmap (16-bit PNG), Satellite (JPG), OSM Texture (PNG), Hybrid Texture (PNG)
    - Road Mask (16-bit PNG), GeoTIFF, GeoJSON, GLB Model
-6. **Surrounding Tiles** (optional): Select adjacent tiles, configure satellite quality, and download as a ZIP package for multi-tile worlds.
+   - Each Single Tile export also writes a matching `*.metadata.json` sidecar for reproducibility/debugging.
+6. **Configuration reuse**: Use the four config actions in the panel:
+   - **Copy Configuration**: copies current run config JSON to clipboard.
+   - **Paste Configuration**: applies JSON from clipboard.
+   - **Save Configuration**: downloads current run config as JSON.
+   - **Load Configuration**: loads a saved JSON config file.
+7. **Surrounding Tiles** (optional): Select adjacent tiles, configure satellite quality, and download as a ZIP package for multi-tile worlds.
 
 ### Batch Job Mode (Beta)
 
@@ -174,6 +182,124 @@ npm run deploy
 5. **Monitor progress**: A live modal shows a color-coded tile grid with satellite thumbnails, progress bar, ETA, and per-tile status.
 6. **Pause & resume**: Close the browser and resume later — batch state is saved to localStorage. Failed tiles can be retried.
 7. **GPXZ users**: Paid plan limits are auto-detected, enabling concurrent API requests (up to 20× faster).
+8. **Reproduce or share jobs**: Use `Copy/Paste/Save/Load Configuration` in Batch mode to rerun identical grids and export selections.
+
+## Run Configuration Schema
+
+MapNG supports reproducible reruns through JSON run configurations in both Single Tile and Batch Job modes.
+
+### Current Schema Version
+
+- **`schemaVersion: 1`** (current)
+- Used by:
+   - **Copy Configuration** (Single + Batch)
+   - **Paste Configuration** (Single + Batch)
+   - **Save Configuration** (Single + Batch)
+   - **Load Configuration** (Single + Batch)
+   - Export metadata files (`*.metadata.json`) via `runConfiguration`
+   - Batch ZIP `metadata.json` via `runConfiguration`
+
+### Compatibility Rules
+
+- Loader accepts either:
+   - a plain config object, or
+   - a metadata wrapper containing `runConfiguration`
+- Unknown fields are ignored.
+- Missing known fields fall back to current UI/default values.
+- Invalid values are rejected or clamped to safe ranges (for example grid dimensions).
+
+### Migration Notes
+
+- **v1 → v1**: no migration required.
+- **Older/partial JSON**: best-effort load (non-breaking fields applied, others left unchanged).
+- **Future versions (`schemaVersion > 1`)**: should add a migration step before applying values to UI state.
+
+### Recommended Upgrade Strategy (for future schema changes)
+
+1. Add a versioned migration function (for example `migrateRunConfigToV1`).
+2. Preserve backward compatibility for at least one prior schema version.
+3. Keep unknown fields when round-tripping config JSON.
+4. Bump `schemaVersion` only for breaking shape changes.
+
+### Example: Single Tile Configuration (v1)
+
+```json
+{
+   "schemaVersion": 1,
+   "mode": "single",
+   "center": { "lat": 35.1983, "lng": -111.6513 },
+   "zoom": 13,
+   "resolution": 2048,
+   "includeOSM": true,
+   "elevationSource": "gpxz",
+   "useUSGS": false,
+   "useGPXZ": true,
+   "gpxzApiKey": "YOUR_API_KEY",
+   "gpxzStatus": {
+      "plan": "small",
+      "used": 120,
+      "limit": 2500,
+      "remaining": 2380,
+      "concurrency": 8,
+      "valid": true
+   },
+   "modelOptions": {
+      "meshResolution": 512,
+      "includeSurroundings": true
+   }
+}
+```
+
+### Example: Batch Configuration (v1)
+
+```json
+{
+   "schemaVersion": 1,
+   "mode": "batch",
+   "center": { "lat": 35.1983, "lng": -111.6513 },
+   "resolution": 1024,
+   "gridCols": 3,
+   "gridRows": 3,
+   "includeOSM": true,
+   "elevationSource": "default",
+   "gpxzApiKey": "",
+   "gpxzStatus": null,
+   "glbMeshResolution": 256,
+   "exports": {
+      "heightmap": true,
+      "satellite": true,
+      "osmTexture": true,
+      "hybridTexture": true,
+      "segmentedSatellite": false,
+      "segmentedHybrid": false,
+      "roadMask": false,
+      "glb": false,
+      "dae": false,
+      "geotiff": false,
+      "geojson": false
+   }
+}
+```
+
+### Example: Metadata-Wrapped Input
+
+```json
+{
+   "schemaVersion": 1,
+   "build": {
+      "hash": "abc1234",
+      "time": "2026-02-22T12:00:00.000Z"
+   },
+   "runConfiguration": {
+      "schemaVersion": 1,
+      "mode": "single",
+      "center": { "lat": 35.1983, "lng": -111.6513 },
+      "resolution": 1024,
+      "includeOSM": true,
+      "elevationSource": "default"
+   }
+}
+```
 
 ## Data Sources
 

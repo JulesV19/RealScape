@@ -53,6 +53,41 @@
       </button>
     </div>
 
+        <div class="grid grid-cols-2 gap-2">
+            <button
+                @click="copyRunConfiguration"
+                class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            >
+                Copy Configuration
+            </button>
+            <button
+                @click="pasteRunConfiguration"
+                class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            >
+                Paste Configuration
+            </button>
+            <button
+                @click="saveRunConfiguration"
+                class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            >
+                Save Configuration
+            </button>
+            <button
+                @click="runConfigFileInput?.click()"
+                class="py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            >
+                Load Configuration
+            </button>
+            <input
+                ref="runConfigFileInput"
+                type="file"
+                accept="application/json,.json"
+                class="hidden"
+                @change="handleRunConfigFile"
+            />
+        </div>
+        <p v-if="runConfigStatus" class="text-[10px] text-gray-500 dark:text-gray-400">{{ runConfigStatus }}</p>
+
     <hr class="border-gray-200 dark:border-gray-600" />
 
     <!-- Resolution & Settings -->
@@ -577,13 +612,14 @@ import ModOfTheDay from './ModOfTheDay.vue';
 import LocationSearch from './LocationSearch.vue';
 import SurroundingTiles from './SurroundingTiles.vue';
 import { exportToGLB, exportToDAE } from '../services/export3d';
-import { checkUSGSStatus, probeGPXZLimits, getGPXZRateLimitInfo } from '../services/terrain';
+import { checkUSGSStatus, probeGPXZLimits } from '../services/terrain';
 import { exportGeoTiff } from '../services/exportGeoTiff';
 import { createWGS84ToLocal } from '../services/geoUtils';
 import { encode } from 'fast-png';
+import { buildCommonTraceMetadata, cloneRateLimitInfo, downloadJsonFile } from '../services/traceability';
 
 
-const props = defineProps(['center', 'resolution', 'isGenerating', 'terrainData', 'generationCacheKey']);
+const props = defineProps(['center', 'zoom', 'resolution', 'isGenerating', 'terrainData', 'generationCacheKey']);
 
 const emit = defineEmits(['locationChange', 'resolutionChange', 'generate', 'fetchOsm', 'surroundingTilesChange']);
 
@@ -635,6 +671,8 @@ watch(() => props.center, (newVal) => {
 }, { deep: true });
 
 const exportPanel = ref(null);
+const runConfigFileInput = ref(null);
+const runConfigStatus = ref('');
 const isExportingGLB = ref(false);
 const isExportingHeightmap = ref(false);
 const isExportingTexture = ref(false);
@@ -867,6 +905,168 @@ const roadMaskPreviewUrl = computed(() => {
     return canvas.toDataURL('image/png');
 });
 
+const buildRunConfiguration = () => {
+    return {
+        schemaVersion: 1,
+        mode: 'single',
+        center: { ...props.center },
+        zoom: props.zoom ?? null,
+        resolution: props.resolution,
+        includeOSM: fetchOSM.value,
+        elevationSource: elevationSource.value,
+        useUSGS: useUSGS.value,
+        useGPXZ: useGPXZ.value,
+        gpxzApiKey: gpxzApiKey.value || '',
+        gpxzStatus: gpxzStatus.value ? { ...gpxzStatus.value } : cloneRateLimitInfo(),
+        modelOptions: {
+            meshResolution: parseInt(modelMeshResolution.value),
+            includeSurroundings: modelIncludeSurroundings.value,
+        },
+        terrain: props.terrainData ? {
+            width: props.terrainData.width,
+            height: props.terrainData.height,
+            bounds: props.terrainData.bounds,
+            minHeight: props.terrainData.minHeight,
+            maxHeight: props.terrainData.maxHeight,
+        } : null,
+        textureModes: {
+            satellite: !!props.terrainData?.satelliteTextureUrl,
+            osm: !!props.terrainData?.osmTextureUrl,
+            hybrid: !!props.terrainData?.hybridTextureUrl,
+            segmentedSatellite: !!props.terrainData?.segmentedTextureUrl,
+            segmentedHybrid: !!props.terrainData?.segmentedHybridTextureUrl,
+            roadMask: !!props.terrainData?.osmFeatures?.length,
+        },
+        osmQuery: props.terrainData?.osmRequestInfo || null,
+    };
+};
+
+const buildExportMetadata = (exportType, filename, extra = {}) => {
+    const runCfg = buildRunConfiguration();
+    return buildCommonTraceMetadata({
+        mode: 'single',
+        center: runCfg.center,
+        zoom: runCfg.zoom,
+        resolution: runCfg.resolution,
+        terrainData: props.terrainData,
+        textureModes: runCfg.textureModes,
+        osmQuery: runCfg.osmQuery,
+        gpxz: runCfg.gpxzStatus,
+        extra: {
+            export: {
+                type: exportType,
+                filename,
+            },
+            runConfiguration: runCfg,
+            ...extra,
+        },
+    });
+};
+
+const triggerDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+};
+
+const downloadMetadataSidecar = (exportFilename, metadata) => {
+    const baseName = exportFilename.replace(/\.[^.]+$/, '');
+    downloadJsonFile(metadata, `${baseName}.metadata.json`);
+};
+
+const copyRunConfiguration = async () => {
+    const payload = buildRunConfiguration();
+    const text = JSON.stringify(payload, null, 2);
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            runConfigStatus.value = 'Run configuration copied to clipboard.';
+            return;
+        }
+    } catch {
+    }
+    runConfigStatus.value = 'Clipboard write unavailable in this browser/session.';
+};
+
+const pasteRunConfiguration = async () => {
+    try {
+        if (!navigator.clipboard?.readText) {
+            runConfigStatus.value = 'Clipboard read unavailable in this browser/session.';
+            return;
+        }
+        const text = await navigator.clipboard.readText();
+        if (!text?.trim()) {
+            runConfigStatus.value = 'Clipboard is empty.';
+            return;
+        }
+        const json = JSON.parse(text);
+        applyRunConfiguration(json);
+        runConfigStatus.value = 'Configuration pasted from clipboard.';
+    } catch (error) {
+        console.error('Failed to paste run configuration:', error);
+        runConfigStatus.value = 'Clipboard content is not valid configuration JSON.';
+    }
+};
+
+const saveRunConfiguration = () => {
+    const payload = buildRunConfiguration();
+    downloadJsonFile(payload, `MapNG_RunConfig_${new Date().toISOString().slice(0, 10)}.json`);
+    runConfigStatus.value = 'Configuration downloaded as JSON.';
+};
+
+const applyRunConfiguration = (config) => {
+    const src = config?.runConfiguration || config;
+    if (!src || typeof src !== 'object') throw new Error('Invalid JSON schema');
+
+    if (src.center && Number.isFinite(src.center.lat) && Number.isFinite(src.center.lng)) {
+        emit('locationChange', { lat: src.center.lat, lng: src.center.lng });
+    }
+    if (Number.isFinite(src.resolution)) {
+        emit('resolutionChange', parseInt(src.resolution));
+    }
+    if (typeof src.includeOSM === 'boolean') {
+        fetchOSM.value = src.includeOSM;
+    }
+    if (typeof src.elevationSource === 'string' && ['default', 'usgs', 'gpxz'].includes(src.elevationSource)) {
+        elevationSource.value = src.elevationSource;
+    }
+    if (typeof src.gpxzApiKey === 'string') {
+        gpxzApiKey.value = src.gpxzApiKey;
+    }
+    if (src.gpxzStatus && typeof src.gpxzStatus === 'object') {
+        gpxzStatus.value = { ...src.gpxzStatus };
+    }
+    if (src.modelOptions && typeof src.modelOptions === 'object') {
+        if (Number.isFinite(src.modelOptions.meshResolution)) {
+            modelMeshResolution.value = String(parseInt(src.modelOptions.meshResolution));
+        }
+        if (typeof src.modelOptions.includeSurroundings === 'boolean') {
+            modelIncludeSurroundings.value = src.modelOptions.includeSurroundings;
+        }
+    }
+};
+
+const handleRunConfigFile = async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        applyRunConfiguration(json);
+        runConfigStatus.value = 'Configuration loaded. Generate to rerun with these settings.';
+    } catch (error) {
+        console.error('Failed to load run configuration:', error);
+        runConfigStatus.value = 'Invalid configuration file.';
+    } finally {
+        input.value = '';
+    }
+};
+
 const downloadHeightmap = async () => {
   if (!props.terrainData) return;
   isExportingHeightmap.value = true;
@@ -899,12 +1099,15 @@ const downloadHeightmap = async () => {
       });
   
       const blob = new Blob([new Uint8Array(pngData)], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
+    const filename = `Heightmap_16bit_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+    const url = URL.createObjectURL(blob);
       
       const link = document.createElement('a');
-      link.download = `Heightmap_16bit_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+    link.download = filename;
       link.href = url;
       link.click();
+
+    downloadMetadataSidecar(filename, buildExportMetadata('heightmap_16bit_png', filename));
       
       URL.revokeObjectURL(url);
   } catch (error) {
@@ -935,20 +1138,24 @@ const downloadTexture = async () => {
         ctx.drawImage(img, 0, 0);
 
         canvas.toBlob((blob) => {
+            const filename = `Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.download = `Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+            link.download = filename;
             link.href = url;
             link.click();
+            downloadMetadataSidecar(filename, buildExportMetadata('satellite_png', filename));
             URL.revokeObjectURL(url);
             isExportingTexture.value = false;
         }, 'image/png');
     } catch {
         // Fallback to direct download
+        const filename = `Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
         const link = document.createElement('a');
-        link.download = `Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+        link.download = filename;
         link.href = props.terrainData.satelliteTextureUrl;
         link.click();
+        downloadMetadataSidecar(filename, buildExportMetadata('satellite_png', filename));
         isExportingTexture.value = false;
     }
 };
@@ -960,10 +1167,12 @@ const downloadOSMTexture = async () => {
     // Simulate a small delay for UX consistency
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    const filename = `OSM_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     const link = document.createElement('a');
-    link.download = `OSM_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+    link.download = filename;
     link.href = props.terrainData.osmTextureUrl;
     link.click();
+    downloadMetadataSidecar(filename, buildExportMetadata('osm_texture_png', filename));
     
     isExportingOSMTexture.value = false;
 };
@@ -975,10 +1184,12 @@ const downloadHybridTexture = async () => {
     // Simulate a small delay for UX consistency
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    const filename = `Hybrid_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     const link = document.createElement('a');
-    link.download = `Hybrid_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+    link.download = filename;
     link.href = props.terrainData.hybridTextureUrl;
     link.click();
+    downloadMetadataSidecar(filename, buildExportMetadata('hybrid_texture_png', filename));
     
     isExportingHybridTexture.value = false;
 };
@@ -989,10 +1200,12 @@ const downloadSegmentedTexture = async () => {
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    const filename = `Segmented_Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     const link = document.createElement('a');
-    link.download = `Segmented_Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+    link.download = filename;
     link.href = props.terrainData.segmentedTextureUrl;
     link.click();
+    downloadMetadataSidecar(filename, buildExportMetadata('segmented_satellite_png', filename));
 
     isExportingSegmentedTexture.value = false;
 };
@@ -1003,10 +1216,12 @@ const downloadSegmentedHybridTexture = async () => {
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    const filename = `Segmented_Hybrid_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     const link = document.createElement('a');
-    link.download = `Segmented_Hybrid_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+    link.download = filename;
     link.href = props.terrainData.segmentedHybridTextureUrl;
     link.click();
+    downloadMetadataSidecar(filename, buildExportMetadata('segmented_hybrid_png', filename));
 
     isExportingSegmentedHybridTexture.value = false;
 };
@@ -1058,11 +1273,15 @@ const downloadOSM = async () => {
 
     const blob = new Blob([JSON.stringify(geoJSON, null, 2)], { type: 'application/geo+json' });
     const url = URL.createObjectURL(blob);
+        const filename = `MapNG_OSM_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.geojson`;
     
     const link = document.createElement('a');
-    link.download = `MapNG_OSM_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.geojson`;
+        link.download = filename;
     link.href = url;
     link.click();
+        downloadMetadataSidecar(filename, buildExportMetadata('osm_geojson', filename, {
+            featureCount: geoJSON.features.length,
+        }));
     
     URL.revokeObjectURL(url);
     isExportingOSM.value = false;
@@ -1145,10 +1364,12 @@ const downloadRoadMask = async () => {
 
         const blob = new Blob([new Uint8Array(pngData)], { type: 'image/png' });
         const url = URL.createObjectURL(blob);
+        const filename = `RoadMask_16bit_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
         const link = document.createElement('a');
-        link.download = `RoadMask_16bit_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+        link.download = filename;
         link.href = url;
         link.click();
+        downloadMetadataSidecar(filename, buildExportMetadata('road_mask_16bit_png', filename));
         URL.revokeObjectURL(url);
 
     } catch (e) {
@@ -1170,6 +1391,9 @@ const downloadGeoTIFF = async () => {
         link.download = filename;
         link.href = url;
         link.click();
+                downloadMetadataSidecar(filename, buildExportMetadata('geotiff', filename, {
+                    geotiffSource: props.terrainData?.sourceGeoTiffs?.source || 'wgs84',
+                }));
         URL.revokeObjectURL(url);
     } catch (e) {
         console.error("GeoTIFF export failed:", e);
@@ -1183,10 +1407,22 @@ const handleGLBExport = async () => {
   if (!props.terrainData) return;
   isExportingGLB.value = true;
   try {
-    await exportToGLB(props.terrainData, {
+        const blob = await exportToGLB(props.terrainData, {
       includeSurroundings: modelIncludeSurroundings.value,
       maxMeshResolution: parseInt(modelMeshResolution.value),
+            returnBlob: true,
     });
+        const date = new Date().toISOString().slice(0, 10);
+        const lat = ((props.terrainData.bounds.north + props.terrainData.bounds.south) / 2).toFixed(4);
+        const lng = ((props.terrainData.bounds.east + props.terrainData.bounds.west) / 2).toFixed(4);
+        const filename = `MapNG_Model_${date}_${lat}_${lng}.glb`;
+        triggerDownload(blob, filename);
+        downloadMetadataSidecar(filename, buildExportMetadata('glb_model', filename, {
+            modelOptions: {
+                meshResolution: parseInt(modelMeshResolution.value),
+                includeSurroundings: modelIncludeSurroundings.value,
+            },
+        }));
   } catch (error) {
     console.error("GLB Export failed:", error);
     alert("Failed to export GLB.");
@@ -1199,10 +1435,23 @@ const handleDAEExport = async () => {
   if (!props.terrainData) return;
   isExportingDAE.value = true;
   try {
-    await exportToDAE(props.terrainData, {
+        const blob = await exportToDAE(props.terrainData, {
       includeSurroundings: modelIncludeSurroundings.value,
       maxMeshResolution: parseInt(modelMeshResolution.value),
+            returnBlob: true,
     });
+        const date = new Date().toISOString().slice(0, 10);
+        const lat = ((props.terrainData.bounds.north + props.terrainData.bounds.south) / 2).toFixed(4);
+        const lng = ((props.terrainData.bounds.east + props.terrainData.bounds.west) / 2).toFixed(4);
+        const ext = blob?.type === 'application/zip' ? '.dae.zip' : '.dae';
+        const filename = `MapNG_Model_${date}_${lat}_${lng}${ext}`;
+        triggerDownload(blob, filename);
+        downloadMetadataSidecar(filename, buildExportMetadata('dae_model', filename, {
+            modelOptions: {
+                meshResolution: parseInt(modelMeshResolution.value),
+                includeSurroundings: modelIncludeSurroundings.value,
+            },
+        }));
   } catch (error) {
     console.error("DAE Export failed:", error);
     alert("Failed to export Collada DAE.");

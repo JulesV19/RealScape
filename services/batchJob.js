@@ -20,6 +20,7 @@ import {
   generateGeoTIFFBlob,
   generateGeoJSONBlob,
 } from './batchExports.js';
+import { buildCommonTraceMetadata, getBuildTrace } from './traceability.js';
 
 // ─── Grid Computation ────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ export function createBatchJobState(config) {
     includeOSM: config.includeOSM,
     elevationSource: config.elevationSource,
     gpxzApiKey: config.gpxzApiKey || '',
+    gpxzStatus: config.gpxzStatus || null,
     glbMeshResolution: config.glbMeshResolution || 512,
 
     status: 'idle',          // idle | running | paused | completed | completed_with_errors
@@ -282,21 +284,59 @@ export async function runBatchJob(state, onProgress, onTileComplete, onError, si
       const zip = new JSZip();
 
       // Tile metadata
-      zip.file('metadata.json', JSON.stringify({
-        batchId: state.id,
-        row: tile.row,
-        col: tile.col,
-        label,
-        center: tile.center,
+      const runConfig = {
+        schemaVersion: 1,
+        mode: 'batch',
+        center: { ...state.center },
         resolution: state.resolution,
-        bounds: terrainData.bounds,
-        minHeight: terrainData.minHeight,
-        maxHeight: terrainData.maxHeight,
-        gridPosition: `Row ${tile.row + 1} of ${state.gridRows}, Col ${tile.col + 1} of ${state.gridCols}`,
-        elevationSource: state.elevationSource,
+        gridCols: state.gridCols,
+        gridRows: state.gridRows,
         includeOSM: state.includeOSM,
-        generatedAt: new Date().toISOString(),
-      }, null, 2));
+        elevationSource: state.elevationSource,
+        gpxzApiKey: state.gpxzApiKey || '',
+        gpxzStatus: state.gpxzStatus || null,
+        glbMeshResolution: state.glbMeshResolution,
+        exports: { ...state.exports },
+      };
+
+      const metadata = buildCommonTraceMetadata({
+        mode: 'batch',
+        center: tile.center,
+        zoom: null,
+        resolution: state.resolution,
+        terrainData,
+        textureModes: {
+          satellite: !!terrainData.satelliteTextureUrl,
+          osm: !!terrainData.osmTextureUrl,
+          hybrid: !!terrainData.hybridTextureUrl,
+          segmentedSatellite: !!terrainData.segmentedTextureUrl,
+          segmentedHybrid: !!terrainData.segmentedHybridTextureUrl,
+          roadMask: !!terrainData.osmFeatures?.length,
+        },
+        osmQuery: terrainData.osmRequestInfo || null,
+        gpxz: state.gpxzStatus || null,
+        extra: {
+          batchId: state.id,
+          tile: {
+            row: tile.row,
+            col: tile.col,
+            label,
+            center: tile.center,
+            gridPosition: `Row ${tile.row + 1} of ${state.gridRows}, Col ${tile.col + 1} of ${state.gridCols}`,
+          },
+          build: getBuildTrace(),
+          runConfiguration: runConfig,
+          terrain: {
+            bounds: terrainData.bounds,
+            minHeight: terrainData.minHeight,
+            maxHeight: terrainData.maxHeight,
+            width: terrainData.width,
+            height: terrainData.height,
+          },
+        },
+      });
+
+      zip.file('metadata.json', JSON.stringify(metadata, null, 2));
 
       // Heightmap
       if (state.exports.heightmap) {
