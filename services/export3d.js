@@ -1748,16 +1748,32 @@ const disposeScene = (scene) => {
 };
 
 export const exportToGLB = async (data, options = {}) => {
-  const { includeSurroundings = false, onProgress, maxMeshResolution = 1024, returnBlob = false } = options;
+  const {
+    includeSurroundings,
+    includeCenterTile,
+    tileSelection,
+    onProgress,
+    maxMeshResolution = 1024,
+    returnBlob = false,
+  } = options;
+  const resolvedIncludeCenterTile = typeof includeCenterTile === 'boolean'
+    ? includeCenterTile
+    : tileSelection !== 'surroundings-only';
+  const resolvedIncludeSurroundings = typeof includeSurroundings === 'boolean'
+    ? includeSurroundings
+    : tileSelection === 'center-plus-surroundings' || tileSelection === 'surroundings-only';
   try {
-    onProgress?.('Building terrain mesh...');
-    const terrainMesh = await createTerrainMesh(data, maxMeshResolution);
-    const osmGroup = createOSMGroup(data);
     const scene = new THREE.Scene();
-    scene.add(terrainMesh);
-    scene.add(osmGroup);
 
-    if (includeSurroundings) {
+    if (resolvedIncludeCenterTile) {
+      onProgress?.('Building terrain mesh...');
+      const terrainMesh = await createTerrainMesh(data, maxMeshResolution);
+      const osmGroup = createOSMGroup(data);
+      scene.add(terrainMesh);
+      scene.add(osmGroup);
+    }
+
+    if (resolvedIncludeSurroundings) {
       onProgress?.('Fetching surrounding tiles for GLB...');
       const surroundingGroup = await createSurroundingMeshes(data, onProgress, Math.floor(maxMeshResolution / 4));
       if (surroundingGroup) scene.add(surroundingGroup);
@@ -1802,16 +1818,32 @@ export const exportToGLB = async (data, options = {}) => {
 };
 
 export const exportToDAE = async (data, options = {}) => {
-  const { includeSurroundings = false, onProgress, maxMeshResolution = 256, returnBlob = false } = options;
+  const {
+    includeSurroundings,
+    includeCenterTile,
+    tileSelection,
+    onProgress,
+    maxMeshResolution = 256,
+    returnBlob = false,
+  } = options;
+  const resolvedIncludeCenterTile = typeof includeCenterTile === 'boolean'
+    ? includeCenterTile
+    : tileSelection !== 'surroundings-only';
+  const resolvedIncludeSurroundings = typeof includeSurroundings === 'boolean'
+    ? includeSurroundings
+    : tileSelection === 'center-plus-surroundings' || tileSelection === 'surroundings-only';
   try {
-    onProgress?.('Building terrain mesh...');
-    const terrainMesh = await createTerrainMesh(data, maxMeshResolution);
-    const osmGroup = createOSMGroup(data);
     const scene = new THREE.Scene();
-    scene.add(terrainMesh);
-    scene.add(osmGroup);
 
-    if (includeSurroundings) {
+    if (resolvedIncludeCenterTile) {
+      onProgress?.('Building terrain mesh...');
+      const terrainMesh = await createTerrainMesh(data, maxMeshResolution);
+      const osmGroup = createOSMGroup(data);
+      scene.add(terrainMesh);
+      scene.add(osmGroup);
+    }
+
+    if (resolvedIncludeSurroundings) {
       onProgress?.('Fetching surrounding tiles for DAE...');
       const surroundingGroup = await createSurroundingMeshes(data, onProgress, Math.floor(maxMeshResolution / 4));
       if (surroundingGroup) scene.add(surroundingGroup);

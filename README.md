@@ -68,8 +68,8 @@ Unlike generic terrain tools, MapNG is purpose-built for vehicle simulation maps
 | **Road Mask** | 16-bit PNG — white drivable roads on black (excludes footways) |
 | **GeoTIFF** | WGS84 or source CRS; multi-tile ZIP for USGS/GPXZ sources |
 | **GeoJSON** | Full OSM vector data with proper geometry types |
-| **GLB 3D Model** | Complete terrain mesh with optional 8-tile surroundings |
-| **Collada DAE** | DAE model with optional texture ZIP packaging |
+| **GLB 3D Model** | Terrain + OSM model export with tile scope options: Center, Center + Surroundings, or Surroundings Only |
+| **Collada DAE** | DAE model (or DAE+textures ZIP) with tile scope options: Center, Center + Surroundings, or Surroundings Only |
 
 ### Surrounding Tiles
 - Interactive 3×3 grid for selecting up to 8 adjacent tiles (NW, N, NE, W, E, SW, S, SE).
@@ -298,7 +298,8 @@ MapNG supports reproducible reruns through JSON run configurations in both Singl
    },
    "modelOptions": {
       "meshResolution": 512,
-      "includeSurroundings": true
+      "tileSelection": "center-only",
+      "includeSurroundings": false
    }
 }
 ```

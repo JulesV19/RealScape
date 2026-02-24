@@ -464,7 +464,7 @@
 
             <template v-if="showExport3D">
             <!-- Shared 3D options -->
-            <div class="flex items-center gap-3 px-1 py-1 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600">
+            <div class="space-y-2 px-2 py-2 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600">
                 <div class="flex items-center gap-1.5">
                     <span class="text-[9px] text-gray-500 dark:text-gray-400">Mesh:</span>
                     <select v-model="modelMeshResolution" class="text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300 cursor-pointer">
@@ -474,10 +474,21 @@
                         <option value="1024">Ultra</option>
                     </select>
                 </div>
-                <label class="flex items-center gap-1 cursor-pointer">
-                    <input type="checkbox" v-model="modelIncludeSurroundings" class="accent-[#FF6600] w-3 h-3" />
-                    <span class="text-[9px] text-gray-500 dark:text-gray-400">+ Surroundings</span>
-                </label>
+                <div class="flex items-center gap-2 flex-nowrap overflow-x-auto whitespace-nowrap pb-0.5">
+                    <span class="text-[9px] text-gray-500 dark:text-gray-400">Tiles:</span>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" v-model="modelTileSelection" value="center-only" class="accent-[#FF6600] w-3 h-3" />
+                        <span class="text-[9px] text-gray-500 dark:text-gray-400">Center</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" v-model="modelTileSelection" value="center-plus-surroundings" class="accent-[#FF6600] w-3 h-3" />
+                        <span class="text-[9px] text-gray-500 dark:text-gray-400">Center + Surroundings</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" v-model="modelTileSelection" value="surroundings-only" class="accent-[#FF6600] w-3 h-3" />
+                        <span class="text-[9px] text-gray-500 dark:text-gray-400">Surroundings Only</span>
+                    </label>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-1.5">
@@ -665,12 +676,9 @@ const isExportingSegmentedHybridTexture = ref(false);
 const isExportingOSM = ref(false);
 const isExportingRoadMask = ref(false);
 const isExportingGeoTIFF = ref(false);
-const glbIncludeSurroundings = ref(false);
 const isExportingDAE = ref(false);
-const daeIncludeSurroundings = ref(false);
-const daeMeshResolution = ref('256');
 const modelMeshResolution = ref('256');
-const modelIncludeSurroundings = ref(false);
+const modelTileSelection = ref('center-only');
 const fetchOSM = ref(localStorage.getItem('mapng_fetchOSM') !== 'false');
 const useUSGS = ref(false);
 const useGPXZ = ref(false);
@@ -900,7 +908,8 @@ const buildRunConfiguration = () => {
         gpxzStatus: gpxzStatus.value ? { ...gpxzStatus.value } : cloneRateLimitInfo(),
         modelOptions: {
             meshResolution: parseInt(modelMeshResolution.value),
-            includeSurroundings: modelIncludeSurroundings.value,
+            tileSelection: modelTileSelection.value,
+            includeSurroundings: modelTileSelection.value !== 'center-only',
         },
         terrain: props.terrainData ? {
             width: props.terrainData.width,
@@ -1075,10 +1084,25 @@ const applyRunConfiguration = (config) => {
         if (Number.isFinite(src.modelOptions.meshResolution)) {
             modelMeshResolution.value = String(parseInt(src.modelOptions.meshResolution));
         }
-        if (typeof src.modelOptions.includeSurroundings === 'boolean') {
-            modelIncludeSurroundings.value = src.modelOptions.includeSurroundings;
+        if (
+            typeof src.modelOptions.tileSelection === 'string' &&
+            ['center-only', 'center-plus-surroundings', 'surroundings-only'].includes(src.modelOptions.tileSelection)
+        ) {
+            modelTileSelection.value = src.modelOptions.tileSelection;
+        } else if (typeof src.modelOptions.includeSurroundings === 'boolean') {
+            modelTileSelection.value = src.modelOptions.includeSurroundings ? 'center-plus-surroundings' : 'center-only';
         }
     }
+};
+
+const getModelTileExportOptions = () => {
+    const includeCenterTile = modelTileSelection.value !== 'surroundings-only';
+    const includeSurroundings = modelTileSelection.value !== 'center-only';
+    return {
+        includeCenterTile,
+        includeSurroundings,
+        tileSelection: modelTileSelection.value,
+    };
 };
 
 const handleRunConfigFile = async (event) => {
@@ -1412,8 +1436,11 @@ const handleGLBExport = async () => {
   if (!props.terrainData) return;
   isExportingGLB.value = true;
   try {
+                const tileExportOptions = getModelTileExportOptions();
         const blob = await exportToGLB(props.terrainData, {
-      includeSurroundings: modelIncludeSurroundings.value,
+            includeSurroundings: tileExportOptions.includeSurroundings,
+            includeCenterTile: tileExportOptions.includeCenterTile,
+            tileSelection: tileExportOptions.tileSelection,
       maxMeshResolution: parseInt(modelMeshResolution.value),
             returnBlob: true,
     });
@@ -1426,7 +1453,9 @@ const handleGLBExport = async () => {
         downloadMetadataSidecar(filename, buildExportMetadata('glb_model', filename, {
             modelOptions: {
                 meshResolution: parseInt(modelMeshResolution.value),
-                includeSurroundings: modelIncludeSurroundings.value,
+                includeSurroundings: tileExportOptions.includeSurroundings,
+                includeCenterTile: tileExportOptions.includeCenterTile,
+                tileSelection: tileExportOptions.tileSelection,
             },
         }));
   } catch (error) {
@@ -1441,8 +1470,11 @@ const handleDAEExport = async () => {
   if (!props.terrainData) return;
   isExportingDAE.value = true;
   try {
+                const tileExportOptions = getModelTileExportOptions();
         const blob = await exportToDAE(props.terrainData, {
-      includeSurroundings: modelIncludeSurroundings.value,
+            includeSurroundings: tileExportOptions.includeSurroundings,
+            includeCenterTile: tileExportOptions.includeCenterTile,
+            tileSelection: tileExportOptions.tileSelection,
       maxMeshResolution: parseInt(modelMeshResolution.value),
             returnBlob: true,
     });
@@ -1458,7 +1490,9 @@ const handleDAEExport = async () => {
         downloadMetadataSidecar(filename, buildExportMetadata('dae_model', filename, {
             modelOptions: {
                 meshResolution: parseInt(modelMeshResolution.value),
-                includeSurroundings: modelIncludeSurroundings.value,
+                includeSurroundings: tileExportOptions.includeSurroundings,
+                includeCenterTile: tileExportOptions.includeCenterTile,
+                tileSelection: tileExportOptions.tileSelection,
             },
         }));
   } catch (error) {
