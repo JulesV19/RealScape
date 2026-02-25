@@ -1687,20 +1687,14 @@ const createNoisePattern = (baseColor) => {
 export const generateOSMTexture = async (terrainData, options = {}) => {
   const onProgress = options.onProgress;
   onProgress?.("Baking procedural noise...");
-  // Cap texture at 8192px max to avoid 1GB+ RGBA buffers (16384^2 = 1GB)
+  // Cap texture at 8192px max to avoid excessive RGBA buffers.
   const MAX_TEX_SIZE = 8192;
-  const TARGET_RESOLUTION = MAX_TEX_SIZE;
-  let SCALE_FACTOR = Math.max(
-    2,
-    Math.ceil(TARGET_RESOLUTION / terrainData.width),
-  );
-  // Ensure final canvas doesn't exceed max
-  if (terrainData.width * SCALE_FACTOR > MAX_TEX_SIZE) {
-    SCALE_FACTOR = Math.max(1, Math.floor(MAX_TEX_SIZE / terrainData.width));
-  }
+  const requestedSize = Number(options.outputSize || terrainData.width || 1024);
+  const targetSize = Math.max(1, Math.min(MAX_TEX_SIZE, Math.floor(requestedSize)));
+  const SCALE_FACTOR = targetSize / Math.max(1, terrainData.width);
   const canvas = document.createElement("canvas");
-  canvas.width = terrainData.width * SCALE_FACTOR;
-  canvas.height = terrainData.height * SCALE_FACTOR;
+  canvas.width = Math.max(1, Math.round(terrainData.width * SCALE_FACTOR));
+  canvas.height = Math.max(1, Math.round(terrainData.height * SCALE_FACTOR));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context");
 
@@ -1743,17 +1737,12 @@ export const generateHybridTexture = async (terrainData, options = {}) => {
   const onProgress = options.onProgress;
   onProgress?.("Blending satellite imagery with vector overlays...");
   const MAX_TEX_SIZE = 8192;
-  const TARGET_RESOLUTION = MAX_TEX_SIZE;
-  let SCALE_FACTOR = Math.max(
-    2,
-    Math.ceil(TARGET_RESOLUTION / terrainData.width),
-  );
-  if (terrainData.width * SCALE_FACTOR > MAX_TEX_SIZE) {
-    SCALE_FACTOR = Math.max(1, Math.floor(MAX_TEX_SIZE / terrainData.width));
-  }
+  const requestedSize = Number(options.outputSize || terrainData.width || 1024);
+  const targetSize = Math.max(1, Math.min(MAX_TEX_SIZE, Math.floor(requestedSize)));
+  const SCALE_FACTOR = targetSize / Math.max(1, terrainData.width);
   const canvas = document.createElement("canvas");
-  canvas.width = terrainData.width * SCALE_FACTOR;
-  canvas.height = terrainData.height * SCALE_FACTOR;
+  canvas.width = Math.max(1, Math.round(terrainData.width * SCALE_FACTOR));
+  canvas.height = Math.max(1, Math.round(terrainData.height * SCALE_FACTOR));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context");
 
@@ -1808,17 +1797,12 @@ export const generateSegmentedHybridTexture = async (terrainData, options = {}) 
   const onProgress = options.onProgress;
   onProgress?.("Blending segmented satellite with road overlays...");
   const MAX_TEX_SIZE = 8192;
-  const TARGET_RESOLUTION = MAX_TEX_SIZE;
-  let SCALE_FACTOR = Math.max(
-    2,
-    Math.ceil(TARGET_RESOLUTION / terrainData.width),
-  );
-  if (terrainData.width * SCALE_FACTOR > MAX_TEX_SIZE) {
-    SCALE_FACTOR = Math.max(1, Math.floor(MAX_TEX_SIZE / terrainData.width));
-  }
+  const requestedSize = Number(options.outputSize || terrainData.width || 1024);
+  const targetSize = Math.max(1, Math.min(MAX_TEX_SIZE, Math.floor(requestedSize)));
+  const SCALE_FACTOR = targetSize / Math.max(1, terrainData.width);
   const canvas = document.createElement("canvas");
-  canvas.width = terrainData.width * SCALE_FACTOR;
-  canvas.height = terrainData.height * SCALE_FACTOR;
+  canvas.width = Math.max(1, Math.round(terrainData.width * SCALE_FACTOR));
+  canvas.height = Math.max(1, Math.round(terrainData.height * SCALE_FACTOR));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context");
 

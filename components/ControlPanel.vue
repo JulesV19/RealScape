@@ -341,113 +341,113 @@
                 <!-- Heightmap -->
                 <button 
                     @click="downloadHeightmap"
-                    :disabled="isExportingHeightmap"
+                    :disabled="isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingHeightmap" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="heightmapPreviewUrl" :src="heightmapPreviewUrl" class="w-full h-full object-cover" />
                         <Mountain v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Heightmap</span>
-                    <span class="text-[8px] text-gray-500 dark:text-gray-400">16-bit PNG</span>
-                    <Download v-if="!isExportingHeightmap" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px 16-bit grayscale PNG</span>
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- Satellite Texture -->
                 <button 
                     @click="downloadTexture"
-                    :disabled="isExportingTexture"
+                    :disabled="isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingTexture" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="terrainData.satelliteTextureUrl" :src="terrainData.satelliteTextureUrl" class="w-full h-full object-cover" />
                         <Box v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Satellite</span>
                     <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
-                    <Download v-if="!isExportingTexture" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- OSM Texture -->
                 <button 
                     @click="downloadOSMTexture"
-                    :disabled="!terrainData.osmTextureUrl || isExportingOSMTexture"
+                    :disabled="!terrainData.osmTextureUrl || isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingOSMTexture" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="terrainData.osmTextureUrl" :src="terrainData.osmTextureUrl" class="w-full h-full object-cover" />
                         <Trees v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">OSM Texture</span>
-                    <span class="text-[8px] text-gray-500 dark:text-gray-400">8192px PNG</span>
-                    <Download v-if="!isExportingOSMTexture" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- Hybrid Texture -->
                 <button 
                     @click="downloadHybridTexture"
-                    :disabled="!terrainData.hybridTextureUrl || isExportingHybridTexture"
+                    :disabled="!terrainData.hybridTextureUrl || isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingHybridTexture" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="terrainData.hybridTextureUrl" :src="terrainData.hybridTextureUrl" class="w-full h-full object-cover" />
                         <Layers v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Hybrid</span>
-                    <span class="text-[8px] text-gray-500 dark:text-gray-400">8192px PNG</span>
-                    <Download v-if="!isExportingHybridTexture" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- Segmented Satellite Texture -->
                 <button 
                     @click="downloadSegmentedTexture"
-                    :disabled="!terrainData.segmentedTextureUrl || isExportingSegmentedTexture"
+                    :disabled="!terrainData.segmentedTextureUrl || isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingSegmentedTexture" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="terrainData.segmentedTextureUrl" :src="terrainData.segmentedTextureUrl" class="w-full h-full object-cover" />
                         <Paintbrush v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Segmented</span>
-                    <span class="text-[8px] text-gray-500 dark:text-gray-400">PBR Base Color</span>
-                    <Download v-if="!isExportingSegmentedTexture" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- Segmented Hybrid Texture -->
                 <button 
                     @click="downloadSegmentedHybridTexture"
-                    :disabled="!terrainData.segmentedHybridTextureUrl || isExportingSegmentedHybridTexture"
+                    :disabled="!terrainData.segmentedHybridTextureUrl || isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingSegmentedHybridTexture" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="terrainData.segmentedHybridTextureUrl" :src="terrainData.segmentedHybridTextureUrl" class="w-full h-full object-cover" />
                         <Paintbrush v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Seg. Hybrid</span>
-                    <span class="text-[8px] text-gray-500 dark:text-gray-400">PBR + Roads</span>
-                    <Download v-if="!isExportingSegmentedHybridTexture" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- Road Mask -->
                 <button 
                     @click="downloadRoadMask"
-                    :disabled="!terrainData.osmFeatures || terrainData.osmFeatures.length === 0 || isExportingRoadMask"
+                    :disabled="!terrainData.osmFeatures || terrainData.osmFeatures.length === 0 || isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-24 overflow-hidden"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5 overflow-hidden rounded bg-gray-100 dark:bg-gray-900">
-                        <Loader2 v-if="isExportingRoadMask" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <img v-else-if="roadMaskPreviewUrl" :src="roadMaskPreviewUrl" class="w-full h-full object-cover" />
                         <Route v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Road Mask</span>
-                    <span class="text-[8px] text-gray-500 dark:text-gray-400">16-bit PNG</span>
-                    <Download v-if="!isExportingRoadMask" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px 16-bit grayscale PNG</span>
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
             </div>
         </div>
@@ -495,31 +495,31 @@
                 <!-- GLB Model -->
                 <button 
                     @click="handleGLBExport"
-                    :disabled="isExportingGLB"
+                    :disabled="isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-20"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5">
-                        <Loader2 v-if="isExportingGLB" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <Box v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">GLB Model</span>
                     <span class="text-[8px] text-gray-500 dark:text-gray-400">.glb binary</span>
-                    <Download v-if="!isExportingGLB" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- DAE (Collada) Model -->
                 <button 
                     @click="handleDAEExport"
-                    :disabled="isExportingDAE"
+                    :disabled="isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-20"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5">
-                        <Loader2 v-if="isExportingDAE" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <FileCode v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">Collada DAE</span>
                     <span class="text-[8px] text-gray-500 dark:text-gray-400">.dae + textures</span>
-                    <Download v-if="!isExportingDAE" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
             </div>
             </template>
@@ -538,31 +538,31 @@
                 <!-- GeoTIFF -->
                 <button 
                     @click="downloadGeoTIFF"
-                    :disabled="isExportingGeoTIFF"
+                    :disabled="isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-20"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5">
-                        <Loader2 v-if="isExportingGeoTIFF" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <FileCode v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">GeoTIFF</span>
                     <span class="text-[8px] text-gray-500 dark:text-gray-400">{{ terrainData?.sourceGeoTiffs ? terrainData.sourceGeoTiffs.source.toUpperCase() : 'WGS84' }}</span>
-                    <Download v-if="!isExportingGeoTIFF" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
 
                 <!-- OSM GeoJSON -->
                 <button 
                     @click="downloadOSM"
-                    :disabled="!terrainData.osmFeatures || terrainData.osmFeatures.length === 0 || isExportingOSM"
+                    :disabled="!terrainData.osmFeatures || terrainData.osmFeatures.length === 0 || isAnyExporting"
                     class="relative flex flex-col items-center justify-center p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-20"
                 >
                     <div class="w-full h-full flex items-center justify-center mb-0.5">
-                        <Loader2 v-if="isExportingOSM" :size="20" class="animate-spin text-[#FF6600]" />
+                        <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
                         <FileJson v-else :size="24" class="text-gray-400 dark:text-gray-500" />
                     </div>
                     <span class="text-[9px] font-medium">GeoJSON</span>
                     <span class="text-[8px] text-gray-500 dark:text-gray-400">OSM vectors</span>
-                    <Download v-if="!isExportingOSM" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+                    <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
                 </button>
             </div>
         </div>
@@ -677,6 +677,19 @@ const isExportingOSM = ref(false);
 const isExportingRoadMask = ref(false);
 const isExportingGeoTIFF = ref(false);
 const isExportingDAE = ref(false);
+const isAnyExporting = computed(() => (
+    isExportingGLB.value ||
+    isExportingHeightmap.value ||
+    isExportingTexture.value ||
+    isExportingOSMTexture.value ||
+    isExportingHybridTexture.value ||
+    isExportingSegmentedTexture.value ||
+    isExportingSegmentedHybridTexture.value ||
+    isExportingOSM.value ||
+    isExportingRoadMask.value ||
+    isExportingGeoTIFF.value ||
+    isExportingDAE.value
+));
 const modelMeshResolution = ref('256');
 const modelTileSelection = ref('center-only');
 const fetchOSM = ref(localStorage.getItem('mapng_fetchOSM') !== 'false');
@@ -1019,6 +1032,15 @@ const triggerDownload = (blob, filename) => {
     URL.revokeObjectURL(url);
 };
 
+const yieldToUi = async () => {
+    await nextTick();
+    await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+            setTimeout(resolve, 0);
+        });
+    });
+};
+
 const downloadMetadataSidecar = (exportFilename, metadata) => {
     if (!ENABLE_METADATA_SIDECARS) return;
     const baseName = exportFilename.replace(/\.[^.]+$/, '');
@@ -1133,6 +1155,7 @@ const handleRunConfigFile = async (event) => {
 const downloadHeightmap = async () => {
   if (!props.terrainData) return;
   isExportingHeightmap.value = true;
+    await yieldToUi();
 
   try {
       // Dynamic import removed (now static)
@@ -1151,7 +1174,13 @@ const downloadHeightmap = async () => {
           }
           val = Math.max(0, Math.min(65535, val));
           data[i] = val;
+
+                    if (i > 0 && i % 262144 === 0) {
+                        await yieldToUi();
+                    }
       }
+
+            await yieldToUi();
   
       const pngData = encode({
           width,
@@ -1177,6 +1206,7 @@ const downloadHeightmap = async () => {
 const downloadTexture = async () => {
     if(!props.terrainData?.satelliteTextureUrl) return;
     isExportingTexture.value = true;
+    await yieldToUi();
     
     try {
         // Convert satellite to PNG for consistency
@@ -1201,13 +1231,13 @@ const downloadTexture = async () => {
         const typedBlob = await ensureDownloadBlobType(blob, 'image/png');
         triggerDownload(typedBlob, filename);
         downloadMetadataSidecar(filename, buildExportMetadata('satellite_png', filename));
-        isExportingTexture.value = false;
     } catch (error) {
         // Fallback: fetch URL as blob and enforce PNG download semantics
         console.warn('Satellite canvas export failed, falling back to blob fetch:', error);
         const filename = `Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
         await downloadBlobUrlAsFile(props.terrainData.satelliteTextureUrl, filename, 'image/', 'image/png');
         downloadMetadataSidecar(filename, buildExportMetadata('satellite_png', filename));
+    } finally {
         isExportingTexture.value = false;
     }
 };
@@ -1215,55 +1245,57 @@ const downloadTexture = async () => {
 const downloadOSMTexture = async () => {
     if(!props.terrainData?.osmTextureUrl) return;
     isExportingOSMTexture.value = true;
-    
-    // Simulate a small delay for UX consistency
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await yieldToUi();
 
-    const filename = `OSM_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
-    await downloadBlobUrlAsFile(props.terrainData.osmTextureUrl, filename, 'image/', 'image/png');
-    downloadMetadataSidecar(filename, buildExportMetadata('osm_texture_png', filename));
-    
-    isExportingOSMTexture.value = false;
+    try {
+        const filename = `OSM_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+        await downloadBlobUrlAsFile(props.terrainData.osmTextureUrl, filename, 'image/', 'image/png');
+        downloadMetadataSidecar(filename, buildExportMetadata('osm_texture_png', filename));
+    } finally {
+        isExportingOSMTexture.value = false;
+    }
 };
 
 const downloadHybridTexture = async () => {
     if(!props.terrainData?.hybridTextureUrl) return;
     isExportingHybridTexture.value = true;
-    
-    // Simulate a small delay for UX consistency
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await yieldToUi();
 
-    const filename = `Hybrid_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
-    await downloadBlobUrlAsFile(props.terrainData.hybridTextureUrl, filename, 'image/', 'image/png');
-    downloadMetadataSidecar(filename, buildExportMetadata('hybrid_texture_png', filename));
-    
-    isExportingHybridTexture.value = false;
+    try {
+        const filename = `Hybrid_Texture_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+        await downloadBlobUrlAsFile(props.terrainData.hybridTextureUrl, filename, 'image/', 'image/png');
+        downloadMetadataSidecar(filename, buildExportMetadata('hybrid_texture_png', filename));
+    } finally {
+        isExportingHybridTexture.value = false;
+    }
 };
 
 const downloadSegmentedTexture = async () => {
     if (!props.terrainData?.segmentedTextureUrl) return;
     isExportingSegmentedTexture.value = true;
+    await yieldToUi();
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const filename = `Segmented_Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
-    await downloadBlobUrlAsFile(props.terrainData.segmentedTextureUrl, filename, 'image/', 'image/png');
-    downloadMetadataSidecar(filename, buildExportMetadata('segmented_satellite_png', filename));
-
-    isExportingSegmentedTexture.value = false;
+    try {
+        const filename = `Segmented_Satellite_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+        await downloadBlobUrlAsFile(props.terrainData.segmentedTextureUrl, filename, 'image/', 'image/png');
+        downloadMetadataSidecar(filename, buildExportMetadata('segmented_satellite_png', filename));
+    } finally {
+        isExportingSegmentedTexture.value = false;
+    }
 };
 
 const downloadSegmentedHybridTexture = async () => {
     if (!props.terrainData?.segmentedHybridTextureUrl) return;
     isExportingSegmentedHybridTexture.value = true;
+    await yieldToUi();
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const filename = `Segmented_Hybrid_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
-    await downloadBlobUrlAsFile(props.terrainData.segmentedHybridTextureUrl, filename, 'image/', 'image/png');
-    downloadMetadataSidecar(filename, buildExportMetadata('segmented_hybrid_png', filename));
-
-    isExportingSegmentedHybridTexture.value = false;
+    try {
+        const filename = `Segmented_Hybrid_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
+        await downloadBlobUrlAsFile(props.terrainData.segmentedHybridTextureUrl, filename, 'image/', 'image/png');
+        downloadMetadataSidecar(filename, buildExportMetadata('segmented_hybrid_png', filename));
+    } finally {
+        isExportingSegmentedHybridTexture.value = false;
+    }
 };
 
 const downloadOSM = async () => {
@@ -1273,63 +1305,65 @@ const downloadOSM = async () => {
     }
     
     isExportingOSM.value = true;
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await yieldToUi();
 
-    const features = props.terrainData.osmFeatures.map((f) => {
-        const coordinates = f.geometry.map((p) => [p.lng, p.lat]);
+    try {
+        const features = props.terrainData.osmFeatures.map((f) => {
+            const coordinates = f.geometry.map((p) => [p.lng, p.lat]);
         
-        let geometryType = 'LineString';
-        let geometryCoordinates = coordinates;
+            let geometryType = 'LineString';
+            let geometryCoordinates = coordinates;
 
-        const isClosed = coordinates.length > 3 && 
-            coordinates[0][0] === coordinates[coordinates.length-1][0] && 
-            coordinates[0][1] === coordinates[coordinates.length-1][1];
+            const isClosed = coordinates.length > 3 && 
+                coordinates[0][0] === coordinates[coordinates.length-1][0] && 
+                coordinates[0][1] === coordinates[coordinates.length-1][1];
 
-        if (f.type === 'building' || (f.type === 'vegetation' && isClosed)) {
-             geometryType = 'Polygon';
-             geometryCoordinates = [coordinates];
-        }
-
-        return {
-            type: "Feature",
-            properties: {
-                id: f.id,
-                feature_type: f.type,
-                ...f.tags
-            },
-            geometry: {
-                type: geometryType,
-                coordinates: geometryCoordinates
+            if (f.type === 'building' || (f.type === 'vegetation' && isClosed)) {
+                 geometryType = 'Polygon';
+                 geometryCoordinates = [coordinates];
             }
+
+            return {
+                type: "Feature",
+                properties: {
+                    id: f.id,
+                    feature_type: f.type,
+                    ...f.tags
+                },
+                geometry: {
+                    type: geometryType,
+                    coordinates: geometryCoordinates
+                }
+            };
+        });
+
+        const geoJSON = {
+            type: "FeatureCollection",
+            features: features
         };
-    });
 
-    const geoJSON = {
-        type: "FeatureCollection",
-        features: features
-    };
-
-    const blob = new Blob([JSON.stringify(geoJSON, null, 2)], { type: 'application/geo+json' });
-    const url = URL.createObjectURL(blob);
+        const blob = new Blob([JSON.stringify(geoJSON, null, 2)], { type: 'application/geo+json' });
+        const url = URL.createObjectURL(blob);
         const filename = `MapNG_OSM_${props.resolution}px_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.geojson`;
     
-    const link = document.createElement('a');
+        const link = document.createElement('a');
         link.download = filename;
-    link.href = url;
-    link.click();
+        link.href = url;
+        link.click();
         downloadMetadataSidecar(filename, buildExportMetadata('osm_geojson', filename, {
             featureCount: geoJSON.features.length,
         }));
     
-    URL.revokeObjectURL(url);
-    isExportingOSM.value = false;
+        URL.revokeObjectURL(url);
+    } finally {
+        isExportingOSM.value = false;
+    }
 };
 
 const downloadRoadMask = async () => {
     if (!props.terrainData || !props.terrainData.osmFeatures) return;
     isExportingRoadMask.value = true;
+    await yieldToUi();
 
     try {
         // Dynamic imports removed (now static)
@@ -1392,7 +1426,13 @@ const downloadRoadMask = async () => {
             } else {
                 data[i] = 0;
             }
+
+            if (i > 0 && i % 262144 === 0) {
+                await yieldToUi();
+            }
         }
+
+        await yieldToUi();
 
         const pngData = encode({
             width,
@@ -1423,6 +1463,7 @@ const downloadRoadMask = async () => {
 const downloadGeoTIFF = async () => {
     if (!props.terrainData) return;
     isExportingGeoTIFF.value = true;
+    await yieldToUi();
 
     try {
         const { blob, filename } = await exportGeoTiff(props.terrainData, props.center);
@@ -1443,6 +1484,7 @@ const downloadGeoTIFF = async () => {
 const handleGLBExport = async () => {
   if (!props.terrainData) return;
   isExportingGLB.value = true;
+    await yieldToUi();
   try {
                 const tileExportOptions = getModelTileExportOptions();
         const blob = await exportToGLB(props.terrainData, {
@@ -1477,6 +1519,7 @@ const handleGLBExport = async () => {
 const handleDAEExport = async () => {
   if (!props.terrainData) return;
   isExportingDAE.value = true;
+    await yieldToUi();
   try {
                 const tileExportOptions = getModelTileExportOptions();
         const blob = await exportToDAE(props.terrainData, {
