@@ -200,6 +200,7 @@ const exports = ref({
   roadMask: false,
   glb: false,
   dae: false,
+  ter: false,
   geotiff: false,
   geojson: false,
 });

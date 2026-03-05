@@ -222,6 +222,21 @@
               <span class="text-[8px] text-gray-500 dark:text-gray-400">.dae + textures</span>
               <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
             </button>
+            
+            <!-- TER (BeamNG) Model -->
+            <button 
+              @click="handleTERExport"
+              :disabled="isAnyExporting"
+              class="relative flex flex-col items-center justify-center p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed h-20"
+            >
+              <div class="w-full h-full flex items-center justify-center mb-0.5">
+                <Loader2 v-if="isAnyExporting" :size="20" class="animate-spin text-[#FF6600]" />
+                <FileCode v-else :size="24" class="text-gray-400 dark:text-gray-500" />
+              </div>
+              <span class="text-[9px] font-medium">BeamNG Terrain</span>
+              <span class="text-[8px] text-gray-500 dark:text-gray-400">.ter heightmap</span>
+              <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
+            </button>
           </div>
         </template>
       </div>
@@ -276,7 +291,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { 
   Download, ChevronDown, Loader2, Mountain, Box, Trees, Layers, Paintbrush, Route, FileCode, FileJson 
 } from 'lucide-vue-next';
-import { generateHeightmapBlob } from '../../services/batchExports';
+import { generateHeightmapBlob, generateTerBlob } from '../../services/batchExports';
 import { exportToGLB, exportToDAE } from '../../services/export3d';
 import { exportGeoTiff } from '../../services/exportGeoTiff';
 import { buildCommonTraceMetadata, downloadJsonFile } from '../../services/traceability';
@@ -309,6 +324,7 @@ const isExportingSegmentedHybridTexture = ref(false);
 const isExportingRoadMask = ref(false);
 const isExportingGeoTIFF = ref(false);
 const isExportingDAE = ref(false);
+const isExportingTER = ref(false);
 
 const isAnyExporting = computed(() => (
   isExportingHeightmap.value ||
@@ -319,7 +335,8 @@ const isAnyExporting = computed(() => (
   isExportingSegmentedHybridTexture.value ||
   isExportingRoadMask.value ||
   isExportingGeoTIFF.value ||
-  isExportingDAE.value
+  isExportingDAE.value ||
+  isExportingTER.value
 ));
 
 const modelCenterTextureType = ref('none');
@@ -773,6 +790,42 @@ const handleDAEExport = async () => {
     alert('Failed to export DAE. See console for details.');
   } finally {
     isExportingDAE.value = false;
+  }
+};
+
+const handleTERExport = async () => {
+  if (!props.terrainData) return;
+  isExportingTER.value = true;
+  try {
+    await yieldToUi();
+    const terBlob = await generateTerBlob(props.terrainData);
+    const filename = `terrain_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.ter`;
+    
+    // Create download link
+    const url = URL.createObjectURL(terBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+
+    const metadata = buildCommonTraceMetadata({
+      center: props.center,
+      resolution: props.resolution,
+      exportType: 'terrain_ter',
+      size: props.terrainData.width,
+      date_iso: new Date().toISOString()
+    });
+    downloadMetadataSidecar(filename, metadata);
+  } catch (error) {
+    console.error('Failed to export TER:', error);
+    alert('Failed to export TER. See console for details.');
+  } finally {
+    isExportingTER.value = false;
   }
 };
 </script>

@@ -50,6 +50,10 @@
           <input type="checkbox" class="accent-[#FF6600] w-3.5 h-3.5" :checked="exports.dae" @change="updateExport('dae', $event.target.checked)" />
           Collada DAE (.dae + textures)
         </label>
+        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
+          <input type="checkbox" class="accent-[#FF6600] w-3.5 h-3.5" :checked="exports.ter" @change="updateExport('ter', $event.target.checked)" />
+          BeamNG Terrain (.ter)
+        </label>
         <div v-if="exports.glb || exports.dae" class="flex items-center gap-2 pt-1 mt-1 border-t border-gray-200 dark:border-gray-600">
           <span class="text-[10px] text-gray-500 dark:text-gray-400">Mesh quality:</span>
           <select

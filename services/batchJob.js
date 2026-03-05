@@ -18,6 +18,7 @@ import {
   generateRoadMaskBlob,
   generateGeoTIFFBlob,
   generateGeoJSONBlob,
+  generateTerBlob,
 } from './batchExports.js';
 import { buildCommonTraceMetadata, getBuildTrace } from './traceability.js';
 import {
@@ -847,6 +848,12 @@ async function processTile(state, tile, ctx, signal) {
       if (state.exports.geotiff) {
         const blob = await scheduleEncode(tile, () => runTimedStage(tile, 'encode_geotiff', async () => generateGeoTIFFBlob(terrainData, tile.center)));
         if (blob) zip.file('heightmap.tif', await ensureExportBlobType(blob, 'image/tiff'));
+        checkpoint(state);
+      }
+
+      if (state.exports.ter) {
+        const blob = await scheduleEncode(tile, () => runTimedStage(tile, 'encode_ter', async () => generateTerBlob(terrainData)));
+        if (blob) zip.file('terrain.ter', await ensureExportBlobType(blob, 'application/octet-stream', 'application/octet-stream'));
         checkpoint(state);
       }
 

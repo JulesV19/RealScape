@@ -1,3 +1,4 @@
+import { exportTer } from './exportTer.js';
 /**
  * batchExports.js — Pure functions that generate export Blobs from terrainData.
  * Used by the batch job runner to produce tile exports without triggering downloads.
@@ -250,4 +251,9 @@ export function generateGeoJSONBlob(terrainData) {
 
   const geoJSON = { type: 'FeatureCollection', features };
   return new Blob([JSON.stringify(geoJSON, null, 2)], { type: 'application/geo+json' });
+}
+
+export async function generateTerBlob(terrainData) {
+  const { blob } = await exportTer(terrainData);
+  return blob;
 }
