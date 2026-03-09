@@ -374,6 +374,106 @@ async function generateTerrainBackdropDAE(terrainData, worldSize) {
   };
 }
 
+// Fraction of terrain width/height to keep clear at each edge.
+// BeamNG's improvedSpline raises DecalRoad nodes that fall outside or too near
+// the TerrainBlock boundary high above the mesh.  Clipping to this inner margin
+// prevents those floating-road artifacts.
+const ROAD_EDGE_MARGIN = 0.015; // ≈ 15 m for a 1024-pixel terrain
+
+/**
+ * Liang-Barsky clip of segment (u0,v0)→(u1,v1) against the axis-aligned box
+ * [lo,hi]×[lo,hi].  Returns [tEnter, tExit] ∈ [0,1] or null if no intersection.
+ */
+function lbClip(u0, v0, u1, v1, lo, hi) {
+  let tEnter = 0, tExit = 1;
+  const du = u1 - u0, dv = v1 - v0;
+  for (const [p, q] of [[-du, u0 - lo], [du, hi - u0], [-dv, v0 - lo], [dv, hi - v0]]) {
+    if (Math.abs(p) < 1e-12) { if (q < 0) return null; }
+    else if (p < 0) tEnter = Math.max(tEnter, q / p);
+    else            tExit  = Math.min(tExit,  q / p);
+  }
+  return tEnter <= tExit + 1e-12 ? [tEnter, tExit] : null;
+}
+
+/** Linearly interpolate between two {lat,lng} points at parameter t. */
+function lerpLatLng(a, b, t) {
+  return { lat: a.lat + t * (b.lat - a.lat), lng: a.lng + t * (b.lng - a.lng) };
+}
+
+/**
+ * Clip an OSM geometry polyline to the terrain's safe inner boundary (minus
+ * ROAD_EDGE_MARGIN on each side).  Returns an array of sub-polylines; each
+ * sub-polyline has ≥ 2 points and lies entirely within the margin.
+ * Segments that cross the boundary are split and the crossing point added,
+ * so roads meet the edge cleanly rather than jumping inward.
+ */
+function clipGeometryToMargin(geometry, bounds) {
+  const lo = ROAD_EDGE_MARGIN, hi = 1 - ROAD_EDGE_MARGIN;
+  const uvOf = pt => [
+    (pt.lng  - bounds.west)  / (bounds.east  - bounds.west),
+    (bounds.north - pt.lat)  / (bounds.north - bounds.south),
+  ];
+  const inside = (u, v) => u >= lo && u <= hi && v >= lo && v <= hi;
+
+  const segments = [];
+  let current = [];
+
+  for (let i = 0; i < geometry.length; i++) {
+    const pt = geometry[i];
+    const [u, v] = uvOf(pt);
+    const inNow = inside(u, v);
+
+    if (i === 0) {
+      if (inNow) current.push(pt);
+      continue;
+    }
+
+    const prev  = geometry[i - 1];
+    const [pu, pv] = uvOf(prev);
+    const inPrev = inside(pu, pv);
+
+    if (inPrev && inNow) {
+      // Both inside — normal case.
+      current.push(pt);
+    } else if (inPrev && !inNow) {
+      // Exiting: add the exit point on the margin boundary, then break.
+      const clip = lbClip(pu, pv, u, v, lo, hi);
+      if (clip) current.push(lerpLatLng(prev, pt, clip[1]));
+      if (current.length >= 2) segments.push(current);
+      current = [];
+    } else if (!inPrev && inNow) {
+      // Entering: start new segment at the entry point on the margin boundary.
+      const clip = lbClip(pu, pv, u, v, lo, hi);
+      current = [clip ? lerpLatLng(prev, pt, clip[0]) : pt, pt];
+    } else {
+      // Both outside: the segment might still pass through the box.
+      const clip = lbClip(pu, pv, u, v, lo, hi);
+      if (clip) {
+        if (current.length >= 2) segments.push(current);
+        segments.push([lerpLatLng(prev, pt, clip[0]), lerpLatLng(prev, pt, clip[1])]);
+        current = [];
+      }
+    }
+  }
+
+  if (current.length >= 2) segments.push(current);
+  return segments;
+}
+
+/**
+ * Split a polyline (array of points) into chunks of at most maxNodes nodes.
+ * Adjacent chunks overlap by one node so there is no visible gap between the
+ * resulting DecalRoad objects.
+ */
+function chunkPolyline(points, maxNodes = 50) {
+  if (points.length <= maxNodes) return [points];
+  const chunks = [];
+  for (let i = 0; i < points.length - 1; i += maxNodes - 1) {
+    chunks.push(points.slice(i, i + maxNodes));
+  }
+  return chunks;
+}
+
 // OSM highway type → BeamNG DecalRoad properties.
 // width: half-width in metres (total road width = 2 × value, per BeamNG node format)
 // renderPriority: higher = renders on top at intersections; major roads over minor
@@ -405,9 +505,10 @@ const ROAD_SKIP = new Set([
 /**
  * Convert OSM road features to BeamNG DecalRoad scene objects.
  *
- * Each OSM way with a driveable highway tag becomes one DecalRoad spline.
- * Node coordinates are converted from WGS84 → BeamNG world-space using the
- * same geoToWorld() projection as the spawn point, then clamped to 3 d.p.
+ * Each OSM way is clipped to the terrain's safe inner boundary before export.
+ * Ways that cross the boundary are split into multiple DecalRoads at the
+ * crossing point, so no node lands outside or too near the TerrainBlock edge
+ * (which causes BeamNG's improvedSpline to float those segments in the air).
  *
  * DecalRoad nodes format: [x, y, z, halfWidth]
  *   halfWidth = distance from road centreline to each edge (metres).
@@ -427,35 +528,42 @@ function generateDecalRoads(terrainData, squareSize) {
 
     const style = HIGHWAY_STYLE[highway] ?? { material: 'road_asphalt_2lane', width: 3, textureLength: 8, renderPriority: 10 };
 
-    const nodes = [];
-    for (const pt of feature.geometry) {
-      const [wx, wy, wz] = geoToWorld(pt.lat, pt.lng, terrainData, squareSize, 0.1);
-      nodes.push([
-        Math.round(wx * 1000) / 1000,
-        Math.round(wy * 1000) / 1000,
-        Math.round(wz * 1000) / 1000,
-        style.width,
-      ]);
+    // Clip to the terrain's safe inner boundary, splitting at crossings.
+    // Then further chunk each segment so no single DecalRoad is too long.
+    const clippedSegments = clipGeometryToMargin(feature.geometry, terrainData.bounds)
+      .flatMap(s => chunkPolyline(s));
+
+    for (const segment of clippedSegments) {
+      const nodes = [];
+      for (const pt of segment) {
+        const [wx, wy, wz] = geoToWorld(pt.lat, pt.lng, terrainData, squareSize, 0.1);
+        nodes.push([
+          Math.round(wx * 1000) / 1000,
+          Math.round(wy * 1000) / 1000,
+          Math.round(wz * 1000) / 1000,
+          style.width,
+        ]);
+      }
+
+      if (nodes.length < 2) continue;
+
+      roads.push({
+        class: 'DecalRoad',
+        __parent: 'Decal_roads',
+        position: [nodes[0][0], nodes[0][1], nodes[0][2]],
+        autoLanes: true,
+        detail: 0.1,
+        drivability: 1,
+        improvedSpline: true,
+        smoothness: 0,
+        material: style.material,
+        nodes,
+        overObjects: true,
+        renderPriority: style.renderPriority,
+        textureLength: style.textureLength,
+        zBias: 0.05,
+      });
     }
-
-    if (nodes.length < 2) continue;
-
-    roads.push({
-      class: 'DecalRoad',
-      __parent: 'Decal_roads',
-      position: [nodes[0][0], nodes[0][1], nodes[0][2]],
-      autoLanes: true,
-      detail: 0.1,
-      drivability: 1,
-      improvedSpline: true,
-      smoothness: 0,
-      material: style.material,
-      nodes,
-      overObjects: true,
-      renderPriority: style.renderPriority,
-      textureLength: style.textureLength,
-      zBias: 0.05,
-    });
   }
 
   return roads;
