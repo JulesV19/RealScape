@@ -50,6 +50,92 @@ function adjustBounds(bounds, origWidth, origHeight, startX, startY, cropSize) {
   };
 }
 
+function pointInBounds(pt, bounds) {
+  return (
+    pt &&
+    pt.lat <= bounds.north &&
+    pt.lat >= bounds.south &&
+    pt.lng >= bounds.west &&
+    pt.lng <= bounds.east
+  );
+}
+
+function clampPointToBounds(pt, bounds) {
+  return {
+    lat: Math.max(bounds.south, Math.min(bounds.north, pt.lat)),
+    lng: Math.max(bounds.west, Math.min(bounds.east, pt.lng)),
+  };
+}
+
+function clipRoadGeometryToBounds(geometry, bounds) {
+  if (!Array.isArray(geometry) || geometry.length < 2) return [];
+  const segments = [];
+  let current = [];
+
+  for (let i = 0; i < geometry.length; i++) {
+    const pt = geometry[i];
+    const inside = pointInBounds(pt, bounds);
+
+    if (inside) {
+      if (current.length === 0 && i > 0) {
+        current.push(clampPointToBounds(geometry[i - 1], bounds));
+      }
+      current.push(pt);
+    } else if (current.length > 0) {
+      current.push(clampPointToBounds(pt, bounds));
+      if (current.length >= 2) segments.push(current);
+      current = [];
+    }
+  }
+
+  if (current.length >= 2) segments.push(current);
+  return segments;
+}
+
+function cropOSMFeatures(osmFeatures, bounds) {
+  if (!Array.isArray(osmFeatures) || !bounds) return osmFeatures;
+
+  const out = [];
+  for (const feature of osmFeatures) {
+    if (!feature?.geometry?.length) continue;
+
+    if (feature.type === 'road') {
+      const pieces = clipRoadGeometryToBounds(feature.geometry, bounds);
+      for (const geom of pieces) {
+        out.push({ ...feature, geometry: geom });
+      }
+      continue;
+    }
+
+    // Buildings/areas/points: keep only if they overlap cropped bounds.
+    const hasAnyInside = feature.geometry.some((pt) => pointInBounds(pt, bounds));
+    if (!hasAnyInside) continue;
+
+    const croppedFeature = {
+      ...feature,
+      geometry: feature.geometry
+        .filter((pt) => pointInBounds(pt, bounds))
+        .map((pt) => ({ lat: pt.lat, lng: pt.lng })),
+    };
+
+    // Preserve minimum shape viability.
+    if (feature.type === 'building' && croppedFeature.geometry.length < 3) continue;
+    if (feature.type !== 'building' && croppedFeature.geometry.length < 1) continue;
+
+    if (Array.isArray(feature.holes) && feature.holes.length > 0) {
+      const holes = feature.holes
+        .map((hole) => hole.filter((pt) => pointInBounds(pt, bounds)))
+        .filter((hole) => hole.length >= 3);
+      if (holes.length > 0) croppedFeature.holes = holes;
+      else delete croppedFeature.holes;
+    }
+
+    out.push(croppedFeature);
+  }
+
+  return out;
+}
+
 export async function prepareCroppedTerrainData(terrainData) {
   const cropSize = terrainData?.exportCropSize;
   if (!cropSize) return terrainData;
@@ -82,6 +168,8 @@ export async function prepareCroppedTerrainData(terrainData) {
     terrainData.bounds, origWidth, origHeight, startX, startY, cropSize
   );
 
+  const croppedOSMFeatures = cropOSMFeatures(terrainData.osmFeatures, croppedBounds);
+
   // Crop all texture URLs in parallel
   const urlFields = [
     'satelliteTextureUrl',
@@ -110,10 +198,14 @@ export async function prepareCroppedTerrainData(terrainData) {
     minHeight,
     maxHeight,
     bounds:    croppedBounds,
+    osmFeatures: croppedOSMFeatures,
     // exportCropSize cleared so downstream doesn't try to crop again
     exportCropSize: null,
     ...croppedUrls,
     // Canvas refs are invalidated after crop; clear them
+    osmTextureCanvas: null,
     hybridTextureCanvas: null,
+    segmentedTextureCanvas: null,
+    segmentedHybridTextureCanvas: null,
   };
 }

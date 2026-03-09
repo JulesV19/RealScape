@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
       <ScanLine :size="13" class="text-[#FF6600]" />
-      LiDAR Metadata
+      {{ title }}
     </div>
 
     <!-- Row grid -->
@@ -24,6 +24,9 @@ import BaseCard from '../base/BaseCard.vue';
 const props = defineProps({
   meta: { type: Object, required: true },
 });
+
+const isPointCloud = computed(() => Number.isFinite(props.meta?.pointCount));
+const title = computed(() => (isPointCloud.value ? 'LiDAR Metadata' : 'Raster Metadata'));
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,11 @@ function fmtCoord(v, pos, neg) {
   if (v == null) return null;
   const dir = v >= 0 ? pos : neg;
   return `${Math.abs(v).toFixed(5)}° ${dir}`;
+}
+
+function fmtMpp(v) {
+  if (!Number.isFinite(v) || v <= 0) return '—';
+  return `${v.toFixed(3)} m/px`;
 }
 
 // ── Derived values ────────────────────────────────────────────────────────────
@@ -74,16 +82,35 @@ const rows = computed(() => {
   const m = props.meta;
   const list = [];
 
-  // Format + version
-  const fmt = m.pointFormat != null ? `Format ${m.pointFormat}` : null;
-  const ver = (m.versionMajor != null && m.versionMinor != null)
-    ? `LAS ${m.versionMajor}.${m.versionMinor}` : null;
-  if (ver || fmt) {
-    list.push({ label: 'Format', value: [ver, fmt].filter(Boolean).join(' · ') });
+  if (isPointCloud.value) {
+    // Format + version
+    const fmt = m.pointFormat != null ? `Format ${m.pointFormat}` : null;
+    const ver = (m.versionMajor != null && m.versionMinor != null)
+      ? `LAS ${m.versionMajor}.${m.versionMinor}` : null;
+    if (ver || fmt) {
+      list.push({ label: 'Format', value: [ver, fmt].filter(Boolean).join(' · ') });
+    }
+  } else {
+    list.push({ label: 'Format', value: m.isGeoTiff ? 'GeoTIFF' : 'TIFF (no geo metadata)' });
   }
 
-  // Encoding
-  list.push({ label: 'Encoding', value: m.isLaz ? 'LAZ (compressed)' : 'LAS (uncompressed)' });
+  // Encoding / source type
+  if (isPointCloud.value) {
+    list.push({ label: 'Encoding', value: m.isLaz ? 'LAZ (compressed)' : 'LAS (uncompressed)' });
+  }
+
+  // Source raster dimensions (if known)
+  if (m.nativeWidth && m.nativeHeight) {
+    list.push({ label: 'Source grid', value: `${m.nativeWidth} × ${m.nativeHeight} px` });
+  } else if (m.sourceWidth && m.sourceHeight) {
+    list.push({ label: 'Source grid', value: `${m.sourceWidth} × ${m.sourceHeight} px` });
+  }
+
+  // Source + processing resolution
+  if (Number.isFinite(m.nativeMetersPerPixel)) {
+    list.push({ label: 'Source resolution', value: fmtMpp(m.nativeMetersPerPixel) });
+    list.push({ label: 'Processing resolution', value: fmtMpp(Math.min(1, Math.max(0.05, m.nativeMetersPerPixel))) });
+  }
 
   // File size
   if (m.fileSize) {
@@ -91,7 +118,7 @@ const rows = computed(() => {
   }
 
   // Point count
-  if (m.pointCount != null) {
+  if (isPointCloud.value) {
     list.push({ label: 'Points', value: fmtPoints(m.pointCount) });
   }
 
@@ -108,7 +135,7 @@ const rows = computed(() => {
   }
 
   // Z range (native CRS units — meters for most, feet for ftUS CRS)
-  if (m.minZ != null && m.maxZ != null) {
+  if (isPointCloud.value && m.minZ != null && m.maxZ != null) {
     list.push({
       label: 'Z range',
       value: `${m.minZ.toFixed(1)} – ${m.maxZ.toFixed(1)}`,
@@ -116,7 +143,7 @@ const rows = computed(() => {
   }
 
   // Point density
-  if (densityPtM2.value != null) {
+  if (isPointCloud.value && densityPtM2.value != null) {
     list.push({
       label: 'Density',
       value: `${densityPtM2.value.toFixed(1)} pts/m²`,

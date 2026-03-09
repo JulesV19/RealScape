@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import JSZip from 'jszip';
 import { exportTer } from './exportTer.js';
 import { createOSMGroup, createSurroundingMeshes, SCENE_SIZE } from './export3d.js';
+import { prepareCroppedTerrainData } from './cropTerrain.js';
 
 /**
  * Sanitize a string for use as a BeamNG level folder name.
@@ -10,17 +11,38 @@ function sanitizeLevelName(name) {
   return name.replace(/[^a-zA-Z0-9_]/g, '_');
 }
 
+function pointInBounds(pt, bounds) {
+  return (
+    pt &&
+    pt.lat <= bounds.north &&
+    pt.lat >= bounds.south &&
+    pt.lng >= bounds.west &&
+    pt.lng <= bounds.east
+  );
+}
+
+function filterOSMFeaturesToBounds(features, bounds) {
+  if (!Array.isArray(features)) return [];
+  return features.filter((feature) => {
+    if (!Array.isArray(feature?.geometry) || feature.geometry.length === 0) return false;
+    return feature.geometry.some((pt) => pointInBounds(pt, bounds));
+  });
+}
+
 /**
  * Compute terrain square size (meters per grid square) from bounds.
  */
 function computeSquareSize(terrainData) {
-  const { bounds, width, height } = terrainData;
-  const size = Math.min(width, height);
+  if (Number.isFinite(terrainData?.metersPerPixel) && terrainData.metersPerPixel > 0) {
+    return Math.round(terrainData.metersPerPixel * 100) / 100;
+  }
+
+  const { bounds, width } = terrainData;
   const centerLat = (bounds.north + bounds.south) / 2;
   const latRad = (centerLat * Math.PI) / 180;
   const metersPerDegreeLng = 111320 * Math.cos(latRad);
   const realWidthMeters = (bounds.east - bounds.west) * metersPerDegreeLng;
-  return Math.round((realWidthMeters / size) * 100) / 100;
+  return Math.round((realWidthMeters / width) * 100) / 100;
 }
 
 /**
@@ -29,7 +51,7 @@ function computeSquareSize(terrainData) {
  */
 function geoToWorld(lat, lng, terrainData, squareSize, zOffset = 3) {
   const { bounds, width, height, heightMap, minHeight } = terrainData;
-  const size = Math.min(width, height);
+  const size = width;
   const worldSize = size * squareSize;
 
   const u = Math.max(0, Math.min(1, (lng - bounds.west) / (bounds.east - bounds.west)));
@@ -614,26 +636,41 @@ function toNDJSON(objects) {
  */
 export async function exportBeamNGLevel(terrainData, center, options = {}) {
   const { baseTexture = 'hybrid', includeBackdrop = false } = options;
+
+  // BeamNG TerrainBlock is square. If source data is rectangular, center-crop
+  // everything (heightmap, bounds, textures) so terrain, texture, and OSM
+  // objects share the same footprint.
+  let td = terrainData;
+  if (td.width !== td.height) {
+    const cropSize = Math.min(td.width, td.height);
+    td = await prepareCroppedTerrainData({ ...td, exportCropSize: cropSize });
+  }
+
+  const exportTerrainData = {
+    ...td,
+    osmFeatures: filterOSMFeaturesToBounds(td.osmFeatures, td.bounds),
+  };
+
   const lat = center.lat.toFixed(4);
   const lng = center.lng.toFixed(4);
   const levelName = sanitizeLevelName(`mapng_${lat}_${lng}`);
 
-  const size = Math.min(terrainData.width, terrainData.height);
-  const squareSize = computeSquareSize(terrainData);
+  const size = exportTerrainData.width;
+  const squareSize = computeSquareSize(exportTerrainData);
   const halfExtent = (size / 2) * squareSize;
   const worldSize = size * squareSize;
-  const maxHeight = Math.ceil(terrainData.maxHeight - terrainData.minHeight);
+  const maxHeight = Math.ceil(exportTerrainData.maxHeight - exportTerrainData.minHeight);
 
-  const spawnPosition = findSpawnPosition(terrainData, center, squareSize);
+  const spawnPosition = findSpawnPosition(exportTerrainData, center, squareSize);
 
-  const decalRoads = generateDecalRoads(terrainData, squareSize);
+  const decalRoads = generateDecalRoads(exportTerrainData, squareSize);
 
   const [{ blob: terBlob }, previewBlob, texBlob, osmDaeBlob, backdropResult] = await Promise.all([
-    exportTer(terrainData),
-    generatePreviewBlob(terrainData),
-    getTerrainTextureBlob(terrainData, baseTexture),
-    generateOSMObjectsDAE(terrainData, worldSize),
-    includeBackdrop ? generateTerrainBackdropDAE(terrainData, worldSize) : Promise.resolve(null),
+    exportTer(exportTerrainData),
+    generatePreviewBlob(exportTerrainData),
+    getTerrainTextureBlob(exportTerrainData, baseTexture),
+    generateOSMObjectsDAE(exportTerrainData, worldSize),
+    includeBackdrop ? generateTerrainBackdropDAE(exportTerrainData, worldSize) : Promise.resolve(null),
   ]);
   const backdropDaeBlob = backdropResult?.daeBlob ?? null;
   const backdropTextureFiles = backdropResult?.textureFiles ?? [];
