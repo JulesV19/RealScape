@@ -27,7 +27,7 @@
             What does it do?
           </h3>
           <p>
-            Select any location on Earth, configure your terrain settings, and MapNG will generate high-precision heightmaps, detailed textures, and full 3D models ready for game engine import — all at a consistent 1 meter per pixel scale. The app features an interactive 3D preview with HDR lighting, cascaded shadow maps, and procedurally generated 3D buildings, trees, and road networks rendered directly from OpenStreetMap data. For large-scale projects, Batch Job mode can process entire grids of tiles automatically.
+            Select any location on Earth, configure your terrain settings, and MapNG will generate high-precision heightmaps, detailed textures, and full 3D models ready for game engine import - all at a consistent 1 meter per pixel scale. The app features an interactive 3D preview with HDR lighting, cascaded shadow maps, and procedurally generated 3D buildings, trees, and road networks rendered directly from OpenStreetMap data. For large-scale projects, Batch Job mode can process entire grids of tiles with per-tile offsets, drag editing, and shared baseline options.
           </p>
         </div>
 
@@ -54,10 +54,10 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Export Formats (11 Types)</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Export Formats</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
               <li>16-bit PNG Heightmap</li>
-              <li>Satellite Texture (JPG)</li>
+              <li>Satellite Texture (PNG)</li>
               <li>OSM "Blueprint" Texture (up to 8192×8192 PNG)</li>
               <li>Hybrid Satellite + Roads Texture (PNG)</li>
               <li>Segmented Satellite Texture (PNG)</li>
@@ -67,6 +67,8 @@
               <li>GeoJSON Vector Data</li>
               <li>GLB 3D Model (+ optional surroundings)</li>
               <li>Collada DAE (+ optional surroundings)</li>
+              <li>BeamNG Terrain (.ter)</li>
+              <li>BeamNG Level Package (.zip)</li>
               <li>Job Data (.mapng) - Complete compressed session package</li>
             </ul>
           </div>
@@ -110,6 +112,10 @@
           </p>
           <ul class="space-y-1 list-disc list-inside marker:text-[#FF6600] text-xs">
             <li>Configurable grid dimensions, resolution, and export selections</li>
+            <li>Independent tile X/Y offsets and live drag editing on the map</li>
+            <li>Tiles Follow Map Center toggle for center-anchored or world-locked tile layouts</li>
+            <li>Shared Elevation Baseline option for one min/max across all tile heightmaps</li>
+            <li>Automatic stitched full-grid 16-bit verification heightmap on successful runs</li>
             <li>Live progress tracking with color-coded tile grid and satellite thumbnails</li>
             <li>Persistent state — pause, resume, and retry failed tiles</li>
             <li>Automatic memory cleanup between tiles for stability</li>

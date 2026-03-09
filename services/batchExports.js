@@ -52,8 +52,14 @@ const canvasToBlob = (canvas, type = 'image/png', quality) => {
 /**
  * Generate a 16-bit PNG heightmap as a Blob.
  */
-export function generateHeightmapBlob(terrainData) {
-  const { width, height, heightMap, minHeight, maxHeight } = terrainData;
+export function generateHeightmapBlob(terrainData, normalization = null) {
+  const { width, height, heightMap } = terrainData;
+  const minHeight = Number.isFinite(normalization?.minHeight)
+    ? normalization.minHeight
+    : terrainData.minHeight;
+  const maxHeight = Number.isFinite(normalization?.maxHeight)
+    ? normalization.maxHeight
+    : terrainData.maxHeight;
   const data = new Uint16Array(width * height);
   const range = maxHeight - minHeight;
 

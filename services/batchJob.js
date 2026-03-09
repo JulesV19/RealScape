@@ -6,6 +6,7 @@
  */
 
 import JSZip from 'jszip';
+import { encode } from 'fast-png';
 import { fetchTerrainData } from './terrain.js';
 import { exportToGLB, exportToDAE } from './export3d.js';
 import {
@@ -68,6 +69,62 @@ export function computeGridTiles(center, resolution, gridCols, gridRows) {
   return tiles;
 }
 
+export function normalizeTileOffsets(rawOffsets = [], maxTiles = Infinity) {
+  if (!Array.isArray(rawOffsets)) return [];
+  return rawOffsets
+    .map((entry) => ({
+      index: Number(entry?.index),
+      offsetX: Number(entry?.offsetX || 0),
+      offsetY: Number(entry?.offsetY || 0),
+    }))
+    .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0 && entry.index < maxTiles)
+    .map((entry) => ({
+      index: entry.index,
+      offsetX: Number.isFinite(entry.offsetX) ? entry.offsetX : 0,
+      offsetY: Number.isFinite(entry.offsetY) ? entry.offsetY : 0,
+    }))
+    .sort((a, b) => a.index - b.index);
+}
+
+export function computeGridTilesWithOffsets(center, resolution, gridCols, gridRows, tileOffsets = []) {
+  const baseTiles = computeGridTiles(center, resolution, gridCols, gridRows);
+  if (!tileOffsets?.length) return baseTiles;
+
+  const offsets = normalizeTileOffsets(tileOffsets, baseTiles.length);
+  const byIndex = new Map(offsets.map((entry) => [entry.index, entry]));
+
+  return baseTiles.map((tile) => {
+    const offset = byIndex.get(tile.index);
+    if (!offset) return tile;
+
+    const metersPerDegLat = 111320;
+    const metersPerDegLng = 111320 * Math.cos(tile.center.lat * Math.PI / 180);
+    const latDelta = offset.offsetY / metersPerDegLat;
+    const lngDelta = offset.offsetX / metersPerDegLng;
+
+    const centerShifted = {
+      lat: tile.center.lat + latDelta,
+      lng: tile.center.lng + lngDelta,
+    };
+
+    const halfLatSpan = resolution / 2 / metersPerDegLat;
+    const halfLngSpan = resolution / 2 / metersPerDegLng;
+
+    return {
+      ...tile,
+      center: centerShifted,
+      offsetX: offset.offsetX,
+      offsetY: offset.offsetY,
+      bounds: {
+        north: centerShifted.lat + halfLatSpan,
+        south: centerShifted.lat - halfLatSpan,
+        east: centerShifted.lng + halfLngSpan,
+        west: centerShifted.lng - halfLngSpan,
+      },
+    };
+  });
+}
+
 export function computeGridBounds(center, resolution, gridCols, gridRows) {
   const metersPerDegLat = 111320;
   const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
@@ -88,6 +145,32 @@ export function computeGridBounds(center, resolution, gridCols, gridRows) {
 const STORAGE_KEY = 'mapng_batch_state_v2';
 const LEGACY_STORAGE_KEY = 'mapng_batch_state';
 
+const toStrictBool = (value) => value === true;
+
+const normalizeExportFlags = (raw = {}) => {
+  const defaults = {
+    heightmap: false,
+    satellite: false,
+    osmTexture: false,
+    hybridTexture: false,
+    segmentedSatellite: false,
+    segmentedHybrid: false,
+    roadMask: false,
+    glb: false,
+    dae: false,
+    ter: false,
+    geotiff: false,
+    geojson: false,
+  };
+
+  const merged = { ...defaults, ...(raw || {}) };
+  const normalized = {};
+  for (const key of Object.keys(defaults)) {
+    normalized[key] = toStrictBool(merged[key]);
+  }
+  return normalized;
+};
+
 const mapLegacyJobStatus = (status) => {
   if (status === 'idle') return JOB_STATES.PENDING;
   if (status === 'running') return JOB_STATES.RUNNING;
@@ -105,8 +188,8 @@ const mapLegacyTileStatus = (status) => {
 
 function deriveSchedulerConfig(input) {
   const resolution = Number(input?.resolution || 1024);
-  const exports = input?.exports || {};
-  const includeOSM = !!input?.includeOSM;
+  const exports = normalizeExportFlags(input?.exports || {});
+  const includeOSM = toStrictBool(input?.includeOSM);
   const requestedProfile = String(input?.performanceProfile || '').trim();
 
   const heavy3D = !!(exports.glb || exports.dae);
@@ -184,14 +267,26 @@ function deriveSchedulerConfig(input) {
 
 export function createBatchJobState(config) {
   const id = computeDeterministicJobId(config);
+  const normalizedExports = normalizeExportFlags(config.exports);
+  const includeOSM = toStrictBool(config.includeOSM);
   const performanceProfile = ['throughput', 'balanced', 'low_memory'].includes(config?.performanceProfile)
     ? config.performanceProfile
     : 'balanced';
   const scheduler = {
-    ...deriveSchedulerConfig({ ...config, performanceProfile }),
+    ...deriveSchedulerConfig({ ...config, includeOSM, exports: normalizedExports, performanceProfile }),
     ...(config.scheduler || {}),
   };
-  const baseTiles = computeGridTiles(config.center, config.resolution, config.gridCols, config.gridRows);
+  const normalizedTileOffsets = normalizeTileOffsets(
+    config.tileOffsets,
+    Number(config.gridCols || 1) * Number(config.gridRows || 1),
+  );
+  const baseTiles = computeGridTilesWithOffsets(
+    config.center,
+    config.resolution,
+    config.gridCols,
+    config.gridRows,
+    normalizedTileOffsets,
+  );
   const tiles = baseTiles.map((tile) => ({
     ...tile,
     id: computeTileId(id, tile),
@@ -227,13 +322,23 @@ export function createBatchJobState(config) {
     resolution: config.resolution,
     gridCols: config.gridCols,
     gridRows: config.gridRows,
-    exports: { ...config.exports },
-    includeOSM: config.includeOSM,
+    tileOffsets: normalizedTileOffsets,
+    exports: normalizedExports,
+    includeOSM,
     elevationSource: config.elevationSource,
     gpxzApiKey: config.gpxzApiKey || '',
     gpxzStatus: config.gpxzStatus || null,
     glbMeshResolution: config.glbMeshResolution || 512,
     performanceProfile,
+    elevationNormalization: {
+      enabled: !!config?.elevationNormalization?.enabled,
+      scope: 'global_batch',
+      status: 'idle',
+      globalMinHeight: null,
+      globalMaxHeight: null,
+      scannedTiles: 0,
+      totalTiles: baseTiles.length,
+    },
 
     scheduler,
 
@@ -273,6 +378,8 @@ const migrateLoadedState = (state) => {
   }
 
   if (!state.schemaVersion) state.schemaVersion = 2;
+  state.includeOSM = toStrictBool(state.includeOSM);
+  state.exports = normalizeExportFlags(state.exports);
   state.performanceProfile = ['throughput', 'balanced', 'low_memory'].includes(state.performanceProfile)
     ? state.performanceProfile
     : 'balanced';
@@ -593,6 +700,13 @@ function buildTileMetadata(state, tile, terrainData) {
     gpxzStatus: state.gpxzStatus || null,
     glbMeshResolution: state.glbMeshResolution,
     performanceProfile: state.performanceProfile || 'balanced',
+    tileOffsets: Array.isArray(state.tileOffsets) ? state.tileOffsets.map((entry) => ({ ...entry })) : [],
+    elevationNormalization: state.elevationNormalization ? {
+      enabled: !!state.elevationNormalization.enabled,
+      scope: state.elevationNormalization.scope || 'global_batch',
+      globalMinHeight: state.elevationNormalization.globalMinHeight,
+      globalMaxHeight: state.elevationNormalization.globalMaxHeight,
+    } : { enabled: false, scope: 'global_batch' },
     exports: { ...state.exports },
     scheduler: { ...(state.scheduler || {}) },
   };
@@ -635,6 +749,20 @@ function buildTileMetadata(state, tile, terrainData) {
       },
     },
   });
+}
+
+function shouldFetchOSMForBatch(state) {
+  if (!toStrictBool(state?.includeOSM)) return false;
+  const exports = state.exports || {};
+  return (
+    exports.osmTexture === true
+    || exports.hybridTexture === true
+    || exports.segmentedHybrid === true
+    || exports.roadMask === true
+    || exports.geojson === true
+    || exports.glb === true
+    || exports.dae === true
+  );
 }
 
 function buildQueues(state, onQueueWait) {
@@ -681,15 +809,176 @@ function buildQueues(state, onQueueWait) {
   };
 }
 
+const COMPOSITE_MAX_PIXELS = 64 * 1024 * 1024;
+
+function createCompositeHeightmapContext(state) {
+  if (!state?.exports?.heightmap) return null;
+
+  const tileSize = Math.max(1, Number(state.resolution || 0));
+  const fullWidth = tileSize * Math.max(1, Number(state.gridCols || 1));
+  const fullHeight = tileSize * Math.max(1, Number(state.gridRows || 1));
+  const totalPixels = fullWidth * fullHeight;
+  const scale = totalPixels > COMPOSITE_MAX_PIXELS
+    ? Math.sqrt(COMPOSITE_MAX_PIXELS / totalPixels)
+    : 1;
+  const outputTileSize = Math.max(1, Math.floor(tileSize * scale));
+
+  return {
+    tileInputSize: tileSize,
+    tileOutputSize: outputTileSize,
+    width: outputTileSize * Math.max(1, Number(state.gridCols || 1)),
+    height: outputTileSize * Math.max(1, Number(state.gridRows || 1)),
+    scale,
+    data: null,
+    writtenTiles: new Set(),
+  };
+}
+
+function writeTileToCompositeHeightmap(composite, state, tile, terrainData) {
+  if (!composite || !terrainData?.heightMap) return;
+  if (!composite.data) {
+    composite.data = new Uint16Array(composite.width * composite.height);
+  }
+
+  const tileKey = `${tile.row}:${tile.col}`;
+  if (composite.writtenTiles.has(tileKey)) return;
+
+  const sharedMin = Number.isFinite(state?.elevationNormalization?.globalMinHeight)
+    ? state.elevationNormalization.globalMinHeight
+    : null;
+  const sharedMax = Number.isFinite(state?.elevationNormalization?.globalMaxHeight)
+    ? state.elevationNormalization.globalMaxHeight
+    : null;
+
+  const minHeight = Number.isFinite(sharedMin)
+    ? sharedMin
+    : terrainData.minHeight;
+  const maxHeight = Number.isFinite(sharedMax)
+    ? sharedMax
+    : terrainData.maxHeight;
+  const range = maxHeight - minHeight;
+
+  const srcSize = composite.tileInputSize;
+  const outSize = composite.tileOutputSize;
+  const startX = tile.col * outSize;
+  const startY = tile.row * outSize;
+  const src = terrainData.heightMap;
+
+  for (let y = 0; y < outSize; y++) {
+    const srcY = Math.min(srcSize - 1, Math.floor((y / outSize) * srcSize));
+    for (let x = 0; x < outSize; x++) {
+      const srcX = Math.min(srcSize - 1, Math.floor((x / outSize) * srcSize));
+      const srcIndex = srcY * srcSize + srcX;
+      const h = src[srcIndex];
+      let v = range > 0 ? Math.floor(((h - minHeight) / range) * 65535) : 0;
+      v = Math.max(0, Math.min(65535, v));
+
+      const dstIndex = (startY + y) * composite.width + (startX + x);
+      composite.data[dstIndex] = v;
+    }
+  }
+
+  composite.writtenTiles.add(tileKey);
+}
+
+function downloadCompositeHeightmap(state, composite) {
+  if (!composite?.data) return;
+
+  const pngData = encode({
+    width: composite.width,
+    height: composite.height,
+    data: composite.data,
+    depth: 16,
+    channels: 1,
+  });
+  const blob = new Blob([new Uint8Array(pngData)], { type: 'image/png' });
+
+  const date = new Date().toISOString().slice(0, 10);
+  const lat = Number(state.center?.lat || 0).toFixed(4);
+  const lng = Number(state.center?.lng || 0).toFixed(4);
+  const scaledLabel = composite.scale < 1 ? `_scaled_${composite.width}x${composite.height}` : '';
+  triggerDownload(blob, `MapNG_Batch_Heightmap_Grid_${date}_${lat}_${lng}${scaledLabel}.png`);
+}
+
+async function computeBatchElevationNormalization(state, scheduleFetch, onProgress, signal) {
+  const normalization = state.elevationNormalization;
+  if (!normalization?.enabled) return;
+
+  normalization.status = 'scanning';
+  normalization.scannedTiles = 0;
+  normalization.totalTiles = state.tiles.length;
+
+  let globalMin = Infinity;
+  let globalMax = -Infinity;
+
+  for (const tile of state.tiles) {
+    if (isPausedOrCanceled(signal, state)) {
+      normalization.status = 'aborted';
+      checkpoint(state);
+      return;
+    }
+
+    onProgress({
+      tileIndex: tile.index,
+      step: `Scanning elevation range (${normalization.scannedTiles + 1}/${state.tiles.length})...`,
+      tile,
+    });
+
+    const previewData = await scheduleFetch(tile, () => fetchTerrainData(
+      tile.center,
+      state.resolution,
+      false,
+      state.elevationSource === 'usgs',
+      state.elevationSource === 'gpxz',
+      state.gpxzApiKey,
+      undefined,
+      undefined,
+      signal,
+      {
+        keepSourceGeoTiffs: false,
+        generateSegmentedSatellite: false,
+        generateOSMTextureAsset: false,
+        generateHybridTextureAsset: false,
+        generateSegmentedHybridAsset: false,
+        globalTileConcurrency: Number(state.scheduler?.globalTileConcurrency || 20),
+      },
+    ));
+
+    if (Number.isFinite(previewData?.minHeight)) globalMin = Math.min(globalMin, previewData.minHeight);
+    if (Number.isFinite(previewData?.maxHeight)) globalMax = Math.max(globalMax, previewData.maxHeight);
+    normalization.scannedTiles += 1;
+    checkpoint(state);
+
+    releaseTerrainResources(previewData);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  if (!Number.isFinite(globalMin) || !Number.isFinite(globalMax) || globalMax <= globalMin) {
+    normalization.enabled = false;
+    normalization.status = 'invalid';
+    normalization.globalMinHeight = null;
+    normalization.globalMaxHeight = null;
+  } else {
+    normalization.status = 'ready';
+    normalization.globalMinHeight = globalMin;
+    normalization.globalMaxHeight = globalMax;
+  }
+
+  checkpoint(state);
+}
+
 async function processTile(state, tile, ctx, signal) {
   const {
     onProgress,
     onTileComplete,
     onError,
+    onHeightmapGenerated,
     scheduleFetch,
     scheduleCompute,
     scheduleEncode,
   } = ctx;
+
+  const shouldFetchOSM = shouldFetchOSMForBatch(state);
 
   const label = `R${tile.row + 1}C${tile.col + 1}`;
   tile.status = TILE_STATES.PROCESSING;
@@ -712,16 +1001,22 @@ async function processTile(state, tile, ctx, signal) {
       tile.attempts = attempt;
       const fetchStatus = { activeStage: null, startedAt: 0 };
 
+      onProgress({
+        tileIndex: tile.index,
+        step: `OSM fetch ${shouldFetchOSM ? 'enabled' : 'disabled'} for ${label}`,
+        tile,
+      });
+
       const terrainData = await scheduleFetch(tile, () => runTimedStage(tile, 'fetch_total', async () => {
         onProgress({ tileIndex: tile.index, step: `Fetching terrain data (${label})...`, tile });
         const needsSegmentedBase = !!(state.exports.segmentedSatellite || state.exports.segmentedHybrid);
-        const needsOsmTexture = !!(state.includeOSM && state.exports.osmTexture);
-        const needsHybridTexture = !!(state.includeOSM && state.exports.hybridTexture);
-        const needsSegmentedHybrid = !!(state.includeOSM && state.exports.segmentedHybrid);
+        const needsOsmTexture = !!(shouldFetchOSM && state.exports.osmTexture);
+        const needsHybridTexture = !!(shouldFetchOSM && state.exports.hybridTexture);
+        const needsSegmentedHybrid = !!(shouldFetchOSM && state.exports.segmentedHybrid);
         return fetchTerrainData(
           tile.center,
           state.resolution,
-          state.includeOSM,
+          shouldFetchOSM,
           state.elevationSource === 'usgs',
           state.elevationSource === 'gpxz',
           state.gpxzApiKey,
@@ -781,8 +1076,17 @@ async function processTile(state, tile, ctx, signal) {
 
       if (state.exports.heightmap) {
         onProgress({ tileIndex: tile.index, step: 'Encoding heightmap...', tile });
-        const blob = await scheduleEncode(tile, () => runTimedStage(tile, 'encode_png_heightmap', async () => generateHeightmapBlob(terrainData)));
+        const sharedRange = state.elevationNormalization?.enabled
+          && Number.isFinite(state.elevationNormalization.globalMinHeight)
+          && Number.isFinite(state.elevationNormalization.globalMaxHeight)
+            ? {
+              minHeight: state.elevationNormalization.globalMinHeight,
+              maxHeight: state.elevationNormalization.globalMaxHeight,
+            }
+            : null;
+        const blob = await scheduleEncode(tile, () => runTimedStage(tile, 'encode_png_heightmap', async () => generateHeightmapBlob(terrainData, sharedRange)));
         if (blob) zip.file('heightmap_16bit.png', await ensureExportBlobType(blob, 'image/png'));
+        onHeightmapGenerated?.(tile, terrainData);
         checkpoint(state);
       }
 
@@ -944,6 +1248,7 @@ export async function runBatchJob(state, onProgress, onTileComplete, onError, si
   checkpoint(state);
 
   const uninstallFetchCache = installBatchFetchCache();
+  const compositeHeightmap = createCompositeHeightmapContext(state);
   const queues = buildQueues(state, (tile, stage, waitMs) => {
     addTiming(tile, stage, waitMs);
   });
@@ -969,6 +1274,9 @@ export async function runBatchJob(state, onProgress, onTileComplete, onError, si
           onProgress,
           onTileComplete,
           onError,
+          onHeightmapGenerated: (completedTile, terrainData) => {
+            writeTileToCompositeHeightmap(compositeHeightmap, state, completedTile, terrainData);
+          },
           ...queues,
         }, signal);
       } catch (error) {
@@ -982,6 +1290,8 @@ export async function runBatchJob(state, onProgress, onTileComplete, onError, si
       }
     }
   };
+
+  await computeBatchElevationNormalization(state, queues.scheduleFetch, onProgress, signal);
 
   try {
     const initialTiles = state.tiles.filter((t) => t.status === TILE_STATES.QUEUED || t.status === TILE_STATES.FAILED);
@@ -1000,6 +1310,10 @@ export async function runBatchJob(state, onProgress, onTileComplete, onError, si
       state.currentTileId = null;
       state.completedAt = Date.now();
       state.status = state.totalFailed > 0 ? JOB_STATES.FAILED : JOB_STATES.COMPLETED;
+      if (state.status === JOB_STATES.COMPLETED && compositeHeightmap?.writtenTiles?.size === state.tiles.length) {
+        onProgress({ tileIndex: -1, step: 'Generating stitched grid heightmap...', tile: null });
+        downloadCompositeHeightmap(state, compositeHeightmap);
+      }
       sampleMemory(state, { label: 'job_completed', force: true });
       checkpoint(state);
     }

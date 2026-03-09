@@ -44,6 +44,8 @@
         :resolution="resolution"
         :is-running="batchRunning"
         :saved-state="savedBatchState"
+        :tile-offsets="batchTileOffsets"
+        :tile-follow-center="batchTileFollowCenter"
         @location-change="handleLocationChange"
         @resolution-change="store.setResolution"
         @start-batch="handleStartBatch"
@@ -52,6 +54,8 @@
         @clear-cache="handleClearBatchCache"
         @update:grid-cols="store.setBatchGridCols"
         @update:grid-rows="store.setBatchGridRows"
+        @update:tile-offsets="store.setBatchTileOffsets"
+        @update:tile-follow-center="store.setBatchTileFollowCenter"
       />
     </AppSidebar>
 
@@ -75,8 +79,10 @@
             :is-dark-mode="isDarkMode"
             :surrounding-tile-positions="surroundingTilePositions"
             :batch-grid="batchGridTiles"
-            @move="store.setCenter" 
+            :batch-editable="batchMode && !batchRunning && !showBatchProgress"
+            @move="handleMapMove" 
             @zoom="store.setZoom"
+            @batch-tile-drag="handleBatchTileDrag"
           />
         </div>
         
@@ -160,6 +166,7 @@ import ViewTabs from './components/ui/ViewTabs.vue';
 import { fetchTerrainData, addOSMToTerrain, loadTerrainFromTif, parseTifFile, loadTerrainFromLaz, parseLazFile } from './services/terrain';
 import {
   computeGridTiles,
+  computeGridTilesWithOffsets,
   createBatchJobState,
   runBatchJob,
   saveBatchState,
@@ -188,6 +195,8 @@ const {
   surroundingTilePositions,
   batchGridCols,
   batchGridRows,
+  batchTileFollowCenter,
+  batchTileOffsets,
   batchState,
   batchRunning,
   batchCurrentStep,
@@ -220,7 +229,13 @@ const batchGridTiles = computed(() => {
   );
   if (usePersistedTiles) return batchState.value.tiles;
   // Otherwise compute preview grid from config
-  return computeGridTiles(center.value, resolution.value, batchGridCols.value, batchGridRows.value);
+  return computeGridTilesWithOffsets(
+    center.value,
+    resolution.value,
+    batchGridCols.value,
+    batchGridRows.value,
+    batchTileOffsets.value,
+  );
 });
 
 // Build info (injected by Vite at build time)
@@ -615,5 +630,77 @@ const executeBatchJob = async (state) => {
     batchState.value = { ...batchState.value };
     savedBatchState.value = loadBatchState();
   }
+};
+
+const handleBatchTileDrag = ({ index, lat, lng }) => {
+  if (!Number.isInteger(index)) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+  const baseTiles = computeGridTiles(
+    center.value,
+    resolution.value,
+    batchGridCols.value,
+    batchGridRows.value,
+  );
+  const baseTile = baseTiles.find((tile) => tile.index === index);
+  if (!baseTile) return;
+
+  const metersPerDegLat = 111320;
+  const metersPerDegLng = 111320 * Math.cos(baseTile.center.lat * Math.PI / 180);
+  const offsetX = (lng - baseTile.center.lng) * metersPerDegLng;
+  const offsetY = (lat - baseTile.center.lat) * metersPerDegLat;
+
+  const current = Array.isArray(batchTileOffsets.value) ? [...batchTileOffsets.value] : [];
+  const byIndex = new Map(current.map((entry) => [Number(entry.index), { ...entry }]));
+  byIndex.set(index, { index, offsetX, offsetY });
+
+  const next = [...byIndex.values()]
+    .filter((entry) => Math.abs(Number(entry.offsetX || 0)) > 0.001 || Math.abs(Number(entry.offsetY || 0)) > 0.001)
+    .sort((a, b) => a.index - b.index);
+
+  store.setBatchTileOffsets(next);
+};
+
+const handleMapMove = (newCenter) => {
+  const oldCenter = center.value;
+  store.setCenter(newCenter);
+
+  const keepWorldFixed = batchMode.value
+    && !batchRunning.value
+    && !showBatchProgress.value
+    && batchTileFollowCenter.value === false;
+
+  if (!keepWorldFixed) return;
+
+  const oldTiles = computeGridTilesWithOffsets(
+    oldCenter,
+    resolution.value,
+    batchGridCols.value,
+    batchGridRows.value,
+    batchTileOffsets.value,
+  );
+  const newBaseTiles = computeGridTiles(
+    newCenter,
+    resolution.value,
+    batchGridCols.value,
+    batchGridRows.value,
+  );
+
+  const nextOffsets = oldTiles.map((tile) => {
+    const baseTile = newBaseTiles.find((candidate) => candidate.index === tile.index);
+    if (!baseTile) return null;
+
+    const metersPerDegLat = 111320;
+    const metersPerDegLng = 111320 * Math.cos(baseTile.center.lat * Math.PI / 180);
+    const offsetX = (tile.center.lng - baseTile.center.lng) * metersPerDegLng;
+    const offsetY = (tile.center.lat - baseTile.center.lat) * metersPerDegLat;
+
+    return { index: tile.index, offsetX, offsetY };
+  })
+    .filter(Boolean)
+    .filter((entry) => Math.abs(Number(entry.offsetX || 0)) > 0.001 || Math.abs(Number(entry.offsetY || 0)) > 0.001)
+    .sort((a, b) => a.index - b.index);
+
+  store.setBatchTileOffsets(nextOffsets);
 };
 </script>

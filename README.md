@@ -101,7 +101,13 @@ Unlike generic terrain tools, MapNG is purpose-built for vehicle simulation maps
 ### Batch Job Mode (Beta)
 
 - Process grids of tiles (up to 20×20) with sequential per-tile processing.
+- Fine-tune each tile with independent X/Y meter offsets for non-uniform layouts.
+- Drag tile centers directly on the map while keeping tiles visible during movement.
+- Toggle **Tiles Follow Map Center** on/off to switch between map-anchored and world-locked tile layouts.
+- Optional **Shared Elevation Baseline** normalizes all tile heightmaps to one global min/max.
+- On successful runs, MapNG generates one stitched full-grid 16-bit verification heightmap.
 - Each tile automatically downloads a ZIP of all selected export types.
+- OSM data is fetched only when selected exports require it.
 - Persistent state saved to localStorage — supports pause, resume, and retry of failed tiles.
 - **Performance profiles**: Max Throughput, Balanced, and Low Memory (8192 Safe) tune internal scheduler and fetch fan-out behavior.
 - Live progress modal with color-coded tile grid, satellite thumbnails, progress bar, ETA, and per-tile status.
@@ -235,11 +241,15 @@ npm run deploy
 
 1. **Switch to Batch Job** using the mode toggle at the top of the sidebar.
 2. **Configure the grid**: set columns, rows (up to 20×20), resolution (512–8192px), and center coordinates.
-3. **Select exports**: choose which file types to include in each tile's ZIP package.
-4. **Choose a performance profile**: Balanced (default), Max Throughput, or Low Memory 8192 Safe.
-5. **Start the batch** — tiles are processed sequentially; each tile's ZIP downloads automatically.
-6. **Monitor progress** in the live modal: color-coded tile grid, satellite thumbnails, progress bar, ETA, and per-tile status.
-7. **Pause & resume** — close the modal at any time; batch state is saved to localStorage. Failed tiles can be retried individually.
+3. **Adjust tile placement** (optional): enter per-tile offsets in meters or drag tile centers directly on the map.
+4. **Choose anchor behavior**: keep **Tiles Follow Map Center** on for center-anchored grids, or turn it off to keep tiles world-locked while panning.
+5. **Select exports**: choose which file types to include in each tile's ZIP package.
+6. **Enable Shared Elevation Baseline** (optional): all tile heightmaps are encoded against one shared min/max range.
+7. **Choose a performance profile**: Balanced (default), Max Throughput, or Low Memory 8192 Safe.
+8. **Start the batch** — tiles are processed sequentially; each tile's ZIP downloads automatically.
+9. **Monitor progress** in the live modal: color-coded tile grid, satellite thumbnails, progress bar, ETA, and per-tile status.
+10. **Pause & resume** — close the modal at any time; batch state is saved to localStorage. Failed tiles can be retried individually.
+11. **Review stitched verification** — when all tiles succeed, a stitched full-grid 16-bit heightmap is exported for seam checking.
 
 #### Batch Performance Profiles
 
@@ -322,6 +332,14 @@ MapNG run configurations are plain JSON objects and are forward/backward compati
   "gridCols": 3,
   "gridRows": 3,
   "performanceProfile": "balanced",
+  "tileFollowCenter": true,
+  "tileOffsets": [
+    { "index": 0, "offsetX": 0, "offsetY": 0 },
+    { "index": 1, "offsetX": 120, "offsetY": -80 }
+  ],
+  "elevationNormalization": {
+    "enabled": true
+  },
   "includeOSM": true,
   "elevationSource": "default",
   "gpxzApiKey": "",

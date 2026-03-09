@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import JSZip from "jszip";
 import { textures } from "./textureGenerator.js";
 import { createMetricProjector } from "./geoUtils.js";
 import { fetchSurroundingTiles, POSITIONS } from "./surroundingTiles.js";
+import { ColladaExporter } from './ColladaExporter.js';
 
 // --- Constants & Helpers ---
 export const SCENE_SIZE = 100;
@@ -1813,8 +1815,6 @@ export const exportToGLB = async (data, options = {}) => {
     }
 
     onProgress?.('Encoding GLB...');
-    const { GLTFExporter } =
-      await import("three/examples/jsm/exporters/GLTFExporter.js");
     return new Promise((resolve, reject) => {
       const exporter = new GLTFExporter();
       exporter.parse(
@@ -1890,7 +1890,6 @@ export const exportToDAE = async (data, options = {}) => {
     scene.updateMatrixWorld(true);
 
     onProgress?.('Encoding Collada...');
-    const { ColladaExporter } = await import('./ColladaExporter.js');
     const exporter = new ColladaExporter();
     const result = exporter.parse(scene, undefined, {
       textureDirectory: 'textures',

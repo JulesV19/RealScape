@@ -28,7 +28,7 @@
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">JavaScript (ES6+)</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Modern standard with dynamic imports & async/await</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Modern standard with modules, async/await, and worker messaging</div>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">Tailwind CSS</div>
@@ -40,7 +40,7 @@
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">Reactive Local State</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Vue refs/computed with localStorage persistence</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Pinia + Vue refs/computed with localStorage persistence</div>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">Lucide Icons</div>
@@ -170,7 +170,7 @@
       
       <div class="p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-center">
         <p class="text-xs text-gray-500 dark:text-gray-400">Built to assist with BeamNG.drive modding workflows.</p>
-        <p class="italic opacity-70 text-xs text-gray-400 dark:text-gray-500 mt-2">App enhanced with Claude</p>
+        <p class="italic opacity-70 text-xs text-gray-400 dark:text-gray-500 mt-2">Open-source tooling for real-world terrain workflows.</p>
       </div>
     </div>
   </div>

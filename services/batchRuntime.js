@@ -30,6 +30,22 @@ const fnv1a = (input) => {
 };
 
 export const normalizeBatchConfig = (config) => {
+  const tileOffsets = Array.isArray(config?.tileOffsets)
+    ? config.tileOffsets
+      .map((entry) => ({
+        index: Number(entry?.index),
+        offsetX: round(Number(entry?.offsetX || 0), 3),
+        offsetY: round(Number(entry?.offsetY || 0), 3),
+      }))
+      .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0)
+      .sort((a, b) => a.index - b.index)
+    : [];
+
+  const elevationNormalization = {
+    enabled: !!config?.elevationNormalization?.enabled,
+    scope: config?.elevationNormalization?.scope || 'global_batch',
+  };
+
   return {
     schemaVersion: 1,
     center: {
@@ -39,11 +55,13 @@ export const normalizeBatchConfig = (config) => {
     resolution: Number(config.resolution || 1024),
     gridCols: Number(config.gridCols || 1),
     gridRows: Number(config.gridRows || 1),
+    tileOffsets,
     includeOSM: !!config.includeOSM,
     elevationSource: config.elevationSource || 'default',
     gpxzApiKey: config.gpxzApiKey || '',
     glbMeshResolution: Number(config.glbMeshResolution || 256),
     performanceProfile: config.performanceProfile || 'balanced',
+    elevationNormalization,
     exports: { ...(config.exports || {}) },
   };
 };

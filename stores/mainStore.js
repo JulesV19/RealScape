@@ -23,6 +23,16 @@ export const useMainStore = defineStore('main', () => {
   // --- Batch Job State ---
   const batchGridCols = ref(parseInt(localStorage.getItem('mapng_batch_cols')) || 3);
   const batchGridRows = ref(parseInt(localStorage.getItem('mapng_batch_rows')) || 3);
+  const batchTileFollowCenter = ref(localStorage.getItem('mapng_batch_tile_follow_center') !== 'false');
+  const batchTileOffsets = ref((() => {
+    try {
+      const saved = localStorage.getItem('mapng_batch_tile_offsets');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  })());
   const batchState = ref(null);
   const batchRunning = ref(false);
   const batchCurrentStep = ref('');
@@ -71,6 +81,16 @@ export const useMainStore = defineStore('main', () => {
     localStorage.setItem('mapng_batch_rows', String(rows));
   }
 
+  function setBatchTileFollowCenter(value) {
+    batchTileFollowCenter.value = !!value;
+    localStorage.setItem('mapng_batch_tile_follow_center', batchTileFollowCenter.value ? 'true' : 'false');
+  }
+
+  function setBatchTileOffsets(offsets) {
+    batchTileOffsets.value = Array.isArray(offsets) ? offsets : [];
+    localStorage.setItem('mapng_batch_tile_offsets', JSON.stringify(batchTileOffsets.value));
+  }
+
   return {
     // State
     center,
@@ -86,6 +106,8 @@ export const useMainStore = defineStore('main', () => {
     surroundingTilePositions,
     batchGridCols,
     batchGridRows,
+    batchTileFollowCenter,
+    batchTileOffsets,
     batchState,
     batchRunning,
     batchCurrentStep,
@@ -98,6 +120,8 @@ export const useMainStore = defineStore('main', () => {
     toggleDarkMode,
     setBatchMode,
     setBatchGridCols,
-    setBatchGridRows
+    setBatchGridRows,
+    setBatchTileFollowCenter,
+    setBatchTileOffsets
   };
 });

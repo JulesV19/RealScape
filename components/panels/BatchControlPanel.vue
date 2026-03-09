@@ -21,6 +21,49 @@
       @update:grid-rows="(v) => gridRows = v"
     />
 
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium text-gray-700 dark:text-gray-300">Tile Offsets (meters)</p>
+        <BaseButton size="sm" variant="secondary" @click="resetTileOffsets">Reset All</BaseButton>
+      </div>
+      <label class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-700 dark:text-gray-300">
+        <span>Tiles Follow Map Center</span>
+        <input type="checkbox" v-model="tileFollowCenterLocal" class="accent-[#FF6600] w-4 h-4 cursor-pointer" />
+      </label>
+      <p class="text-[10px] text-gray-500 dark:text-gray-400">Move tiles independently by offsetting each tile center (X east/west, Y north/south).</p>
+      <div class="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 p-2 space-y-1">
+        <div
+          v-for="entry in tileOffsetEntries"
+          :key="entry.index"
+          class="grid grid-cols-[54px_1fr_1fr_42px] gap-1 items-center"
+        >
+          <span class="text-[10px] text-gray-600 dark:text-gray-300">R{{ entry.row + 1 }}C{{ entry.col + 1 }}</span>
+          <input
+            type="number"
+            step="10"
+            class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 text-[10px] text-gray-900 dark:text-white"
+            :value="entry.offsetX"
+            @input="updateTileOffset(entry.index, 'offsetX', $event.target.value)"
+            placeholder="X"
+          />
+          <input
+            type="number"
+            step="10"
+            class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 text-[10px] text-gray-900 dark:text-white"
+            :value="entry.offsetY"
+            @input="updateTileOffset(entry.index, 'offsetY', $event.target.value)"
+            placeholder="Y"
+          />
+          <button
+            class="text-[10px] py-1 px-1 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800"
+            @click="resetTileOffset(entry.index)"
+          >
+            0
+          </button>
+        </div>
+      </div>
+    </div>
+
     <hr class="border-gray-200 dark:border-gray-600" />
 
     <!-- Resolution -->
@@ -38,6 +81,18 @@
         <p v-if="resolution >= 4096" class="text-amber-600 dark:text-amber-500 font-medium">⚠️ High resolution tiles require significant RAM per tile.</p>
       </ResolutionSelector>
     </div>
+
+    <div class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+      <label class="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
+        <Mountain :size="12" class="text-amber-600 dark:text-amber-400" />
+        Shared Elevation Baseline (all heightmaps use one min/max)
+      </label>
+      <input type="checkbox" v-model="sharedElevationBaseline" class="accent-[#FF6600] w-4 h-4 cursor-pointer" />
+    </div>
+
+    <p v-if="sharedElevationBaseline" class="text-[10px] text-amber-600 dark:text-amber-500">
+      Extra pre-scan required: batch runs one elevation-only pass first to compute global min/max.
+    </p>
 
     <hr class="border-gray-200 dark:border-gray-600" />
 
@@ -90,7 +145,7 @@
       :exports="exports"
       :include-o-s-m="includeOSM"
       :mesh-resolution="meshResolution"
-      @update:exports="(v) => exports.value = v"
+      @update:exports="handleExportsUpdate"
       @update:mesh-resolution="(v) => meshResolution.value = v"
     />
 
@@ -119,7 +174,7 @@
         block
         size="lg"
         variant="primary"
-        :disabled="selectedExportCount === 0 || isRunning || (elevationSource === 'gpxz' && !gpxzApiKey)"
+        :disabled="selectedExportCount === 0 || totalTiles === 0 || isRunning || (elevationSource === 'gpxz' && !gpxzApiKey)"
         @click="handleStart"
       >
         <Play :size="16" />
@@ -163,11 +218,13 @@ const props = defineProps({
   resolution: { type: Number, required: true },
   isRunning: { type: Boolean, default: false },
   savedState: { type: Object, default: null },
+  tileOffsets: { type: Array, default: () => [] },
+  tileFollowCenter: { type: Boolean, default: true },
 });
 
 const emit = defineEmits([
   'locationChange', 'resolutionChange', 'startBatch',
-  'resumeBatch', 'clearSavedBatch', 'update:gridCols', 'update:gridRows', 'clearCache',
+  'resumeBatch', 'clearSavedBatch', 'update:gridCols', 'update:gridRows', 'update:tileOffsets', 'update:tileFollowCenter', 'clearCache',
 ]);
 
 const handleLocationChange = (newLocation) => {
@@ -177,6 +234,31 @@ const handleLocationChange = (newLocation) => {
 // Grid config
 const gridCols = ref(parseInt(localStorage.getItem('mapng_batch_cols')) || 3);
 const gridRows = ref(parseInt(localStorage.getItem('mapng_batch_rows')) || 3);
+const sharedElevationBaseline = ref(localStorage.getItem('mapng_batch_shared_elevation') === 'true');
+const tileFollowCenterLocal = ref(props.tileFollowCenter);
+
+const normalizeTileOffsets = (offsets, tileCount) => {
+  const map = new Map();
+  if (Array.isArray(offsets)) {
+    offsets.forEach((entry) => {
+      const index = Number(entry?.index);
+      if (!Number.isInteger(index) || index < 0 || index >= tileCount) return;
+      map.set(index, {
+        index,
+        offsetX: Number.isFinite(Number(entry?.offsetX)) ? Number(entry.offsetX) : 0,
+        offsetY: Number.isFinite(Number(entry?.offsetY)) ? Number(entry.offsetY) : 0,
+      });
+    });
+  }
+
+  const normalized = [];
+  for (let index = 0; index < tileCount; index++) {
+    normalized.push(map.get(index) || { index, offsetX: 0, offsetY: 0 });
+  }
+  return normalized;
+};
+
+const tileOffsets = ref([]);
 
 // Settings
 const includeOSM = ref(localStorage.getItem('mapng_batch_osm') !== 'false');
@@ -189,12 +271,11 @@ const meshResolution = ref(parseInt(localStorage.getItem('mapng_batch_mesh')) ||
 const performanceProfile = ref(localStorage.getItem('mapng_batch_profile') || 'balanced');
 const runConfigStatus = ref('');
 
-// Export options
-const exports = ref({
+const DEFAULT_EXPORTS = {
   heightmap: true,
   satellite: true,
-  osmTexture: true,
-  hybridTexture: true,
+  osmTexture: false,
+  hybridTexture: false,
   segmentedSatellite: false,
   segmentedHybrid: false,
   roadMask: false,
@@ -203,13 +284,35 @@ const exports = ref({
   ter: false,
   geotiff: false,
   geojson: false,
-});
+};
+
+const normalizeExports = (value) => {
+  const src = (value && typeof value === 'object') ? value : {};
+  const normalized = {};
+  Object.keys(DEFAULT_EXPORTS).forEach((key) => {
+    normalized[key] = src[key] === true;
+  });
+  return normalized;
+};
+
+// Export options
+const exports = ref({ ...DEFAULT_EXPORTS });
 
 // Load saved export prefs
 try {
   const saved = localStorage.getItem('mapng_batch_exports');
-  if (saved) Object.assign(exports.value, JSON.parse(saved));
+  if (saved) {
+    exports.value = normalizeExports(JSON.parse(saved));
+  } else {
+    exports.value = normalizeExports(DEFAULT_EXPORTS);
+  }
 } catch { /* ignore */ }
+localStorage.setItem('mapng_batch_exports', JSON.stringify(exports.value));
+
+const handleExportsUpdate = (nextExports) => {
+  exports.value = normalizeExports(nextExports);
+  localStorage.setItem('mapng_batch_exports', JSON.stringify(exports.value));
+};
 
 // Formatting helpers
 function formatDist(km) {
@@ -225,9 +328,9 @@ const gridWidthKm = computed(() => (gridCols.value * props.resolution) / 1000);
 const gridHeightKm = computed(() => (gridRows.value * props.resolution) / 1000);
 const totalAreaKm = computed(() => gridWidthKm.value * gridHeightKm.value);
 const totalAreaDisplay = computed(() => formatArea(totalAreaKm.value));
-const perimeterDisplay = computed(() => formatDist(2 * (gridWidthKm.value + gridHeightKm.value)));
 const tileAreaKm = computed(() => (props.resolution * props.resolution) / 1_000_000);
 const tileAreaDisplay = computed(() => formatArea(tileAreaKm.value));
+const perimeterDisplay = computed(() => formatDist(2 * (gridWidthKm.value + gridHeightKm.value)));
 const gridWidthDisplay = computed(() => formatDist(gridWidthKm.value));
 const gridHeightDisplay = computed(() => formatDist(gridHeightKm.value));
 const selectedExportCount = computed(() =>
@@ -239,6 +342,43 @@ const hasResumableSavedState = computed(() => {
   return props.savedState.status !== 'completed';
 });
 
+const tileOffsetEntries = computed(() =>
+  tileOffsets.value.map((entry) => ({
+    ...entry,
+    row: Math.floor(entry.index / Math.max(1, gridCols.value)),
+    col: entry.index % Math.max(1, gridCols.value),
+  }))
+);
+
+const emitTileOffsets = () => {
+  const nonZero = tileOffsets.value
+    .filter((entry) => Math.abs(entry.offsetX) > 0 || Math.abs(entry.offsetY) > 0)
+    .map((entry) => ({ ...entry }));
+  emit('update:tileOffsets', nonZero);
+};
+
+const updateTileOffset = (index, axis, value) => {
+  const numeric = Number(value);
+  const next = Number.isFinite(numeric) ? numeric : 0;
+  const row = tileOffsets.value[index];
+  if (!row) return;
+  row[axis] = next;
+  emitTileOffsets();
+};
+
+const resetTileOffset = (index) => {
+  const row = tileOffsets.value[index];
+  if (!row) return;
+  row.offsetX = 0;
+  row.offsetY = 0;
+  emitTileOffsets();
+};
+
+const resetTileOffsets = () => {
+  tileOffsets.value = normalizeTileOffsets([], totalTiles.value);
+  emitTileOffsets();
+};
+
 // Handlers
 const handleStart = () => {
   emit('startBatch', {
@@ -246,6 +386,13 @@ const handleStart = () => {
     resolution: props.resolution,
     gridCols: gridCols.value,
     gridRows: gridRows.value,
+    tileOffsets: tileOffsets.value
+      .filter((entry) => Math.abs(entry.offsetX) > 0 || Math.abs(entry.offsetY) > 0)
+      .map((entry) => ({ ...entry })),
+    elevationNormalization: {
+      enabled: sharedElevationBaseline.value,
+      scope: 'global_batch',
+    },
     includeOSM: includeOSM.value,
     elevationSource: elevationSource.value,
     gpxzApiKey: gpxzApiKey.value,
@@ -264,6 +411,13 @@ const buildRunConfiguration = () => {
     resolution: props.resolution,
     gridCols: gridCols.value,
     gridRows: gridRows.value,
+    tileOffsets: tileOffsets.value
+      .filter((entry) => Math.abs(entry.offsetX) > 0 || Math.abs(entry.offsetY) > 0)
+      .map((entry) => ({ ...entry })),
+    elevationNormalization: {
+      enabled: sharedElevationBaseline.value,
+      scope: 'global_batch',
+    },
     includeOSM: includeOSM.value,
     elevationSource: elevationSource.value,
     gpxzApiKey: gpxzApiKey.value || '',
@@ -335,6 +489,13 @@ const applyRunConfiguration = (config) => {
   if (Number.isFinite(src.gridRows)) {
     gridRows.value = Math.max(1, Math.min(20, parseInt(src.gridRows)));
   }
+  if (Array.isArray(src.tileOffsets)) {
+    tileOffsets.value = normalizeTileOffsets(src.tileOffsets, totalTiles.value);
+    emitTileOffsets();
+  }
+  if (src.elevationNormalization && typeof src.elevationNormalization === 'object') {
+    sharedElevationBaseline.value = !!src.elevationNormalization.enabled;
+  }
   if (typeof src.includeOSM === 'boolean') {
     includeOSM.value = src.includeOSM;
   }
@@ -354,11 +515,8 @@ const applyRunConfiguration = (config) => {
     performanceProfile.value = src.performanceProfile;
   }
   if (src.exports && typeof src.exports === 'object') {
-    Object.keys(exports.value).forEach((key) => {
-      if (typeof src.exports[key] === 'boolean') {
-        exports.value[key] = src.exports[key];
-      }
-    });
+    exports.value = normalizeExports(src.exports);
+    localStorage.setItem('mapng_batch_exports', JSON.stringify(exports.value));
   }
 };
 
@@ -386,6 +544,22 @@ watch(gridRows, (v) => {
   emit('update:gridRows', v);
 });
 
+watch([gridCols, gridRows], () => {
+  tileOffsets.value = normalizeTileOffsets(tileOffsets.value, totalTiles.value);
+  emitTileOffsets();
+}, { immediate: true });
+
+watch(() => props.tileOffsets, (value) => {
+  tileOffsets.value = normalizeTileOffsets(value, totalTiles.value);
+}, { immediate: true, deep: true });
+watch(() => props.tileFollowCenter, (value) => {
+  tileFollowCenterLocal.value = !!value;
+}, { immediate: true });
+watch(tileFollowCenterLocal, (value) => {
+  emit('update:tileFollowCenter', !!value);
+});
+watch(sharedElevationBaseline, (v) => localStorage.setItem('mapng_batch_shared_elevation', String(v)));
+
 // Persist settings
 watch(includeOSM, (v) => localStorage.setItem('mapng_batch_osm', String(v)));
 watch(elevationSource, (v) => localStorage.setItem('mapng_batch_elevation', v));
@@ -407,13 +581,17 @@ const checkGPXZStatus = async () => {
 };
 watch(meshResolution, (v) => localStorage.setItem('mapng_batch_mesh', String(v)));
 watch(performanceProfile, (v) => localStorage.setItem('mapng_batch_profile', v));
-watch(exports, (v) => localStorage.setItem('mapng_batch_exports', JSON.stringify(v)), { deep: true });
+watch(exports, (v) => localStorage.setItem('mapng_batch_exports', JSON.stringify(normalizeExports(v))), {
+  deep: true,
+  flush: 'sync',
+});
 
 // Disable OSM-dependent exports when OSM is off
 watch(includeOSM, (v) => {
   if (!v) {
     exports.value.osmTexture = false;
     exports.value.hybridTexture = false;
+    exports.value.segmentedHybrid = false;
     exports.value.roadMask = false;
     exports.value.geojson = false;
   }

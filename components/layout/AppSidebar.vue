@@ -13,7 +13,7 @@
       </div>
       <div>
         <h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">MapNG</h1>
-        <p class="text-xs text-gray-500 dark:text-gray-400">BeamNG Terrain Generator</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">BeamNG Real-World Terrain Toolkit</p>
       </div>
       <BaseButton
         size="sm"

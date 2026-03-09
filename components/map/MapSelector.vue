@@ -61,6 +61,21 @@
         :options="{ dashArray: tile.status === 'pending' ? '4, 6' : undefined, lineCap: 'round' }"
       />
 
+      <l-marker
+        v-for="tile in batchGrid"
+        v-if="batchEditable"
+        :key="'batch-handle-' + tile.index"
+        :lat-lng="[tile.center.lat, tile.center.lng]"
+        :draggable="true"
+        :icon="batchHandleIcon"
+        @drag="(event) => handleBatchTileDrag(tile, event)"
+        @dragend="(event) => handleBatchTileDrag(tile, event)"
+      >
+        <l-tooltip :permanent="false" direction="top" :offset="[0, -8]">
+          Move R{{ tile.row + 1 }}C{{ tile.col + 1 }}
+        </l-tooltip>
+      </l-marker>
+
       <!-- Surrounding Tile Bounding Boxes (hidden during batch mode) -->
       <l-rectangle
         v-for="rect in surroundingBounds"
@@ -116,7 +131,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
-import { LMap, LTileLayer, LRectangle } from '@vue-leaflet/vue-leaflet';
+import { LMap, LTileLayer, LRectangle, LMarker, LTooltip } from '@vue-leaflet/vue-leaflet';
 import { Layers } from 'lucide-vue-next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -142,6 +157,7 @@ const props = defineProps({
   isDarkMode: { type: Boolean, default: false },
   surroundingTilePositions: { type: Array, default: () => [] },
   batchGrid: { type: Array, default: () => [] },
+  batchEditable: { type: Boolean, default: false },
 });
 
 const hasBatchGrid = computed(() => props.batchGrid && props.batchGrid.length > 0);
@@ -164,7 +180,7 @@ const batchTileFillOpacity = (tile) => {
   }
 };
 
-const emit = defineEmits(['move', 'zoom']);
+const emit = defineEmits(['move', 'zoom', 'batchTileDrag']);
 
 const mapRef = ref(null);
 const currentCenter = ref(props.center);
@@ -172,6 +188,27 @@ const currentZoom = ref(props.zoom);
 const selectedLayer = ref('osm');
 const showLabels = ref(true);
 const isMovingProgrammatically = ref(false);
+
+const batchHandleIcon = L.divIcon({
+  className: 'mapng-batch-handle',
+  html: '<div style="width:14px;height:14px;border-radius:9999px;background:#FF6600;border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.25);"></div>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
+const handleBatchTileDrag = (tile, event) => {
+  const marker = event?.target;
+  if (!marker || !tile) return;
+  const latLng = marker.getLatLng();
+  if (!latLng) return;
+  emit('batchTileDrag', {
+    index: tile.index,
+    row: tile.row,
+    col: tile.col,
+    lat: latLng.lat,
+    lng: latLng.lng,
+  });
+};
 
 const osmUrl = computed(() => {
   return props.isDarkMode 

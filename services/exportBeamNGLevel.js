@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { exportTer } from './exportTer.js';
 import { createOSMGroup, createSurroundingMeshes, SCENE_SIZE } from './export3d.js';
 import { prepareCroppedTerrainData } from './cropTerrain.js';
+import { ColladaExporter } from './ColladaExporter.js';
 
 /**
  * Sanitize a string for use as a BeamNG level folder name.
@@ -290,7 +291,6 @@ async function generateOSMObjectsDAE(terrainData, worldSize) {
   scene.add(osmGroup);
   scene.updateMatrixWorld(true);
 
-  const { ColladaExporter } = await import('./ColladaExporter.js');
   const result = new ColladaExporter().parse(scene, undefined, { version: '1.4.1' });
   if (!result?.data) return null;
 
@@ -381,7 +381,6 @@ async function generateTerrainBackdropDAE(terrainData, worldSize) {
     child.matrixWorld.identity();
   });
 
-  const { ColladaExporter } = await import('./ColladaExporter.js');
   const result = new ColladaExporter().parse(scene, undefined, {
     textureDirectory: 'textures',
     version: '1.4.1',
