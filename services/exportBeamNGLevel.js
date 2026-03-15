@@ -627,6 +627,8 @@ const HIGHWAY_STYLE = {
   unclassified:   { material: 'road_asphalt_2lane',  width: 4,   textureLength: 15, renderPriority: 11 },
   road:           { material: 'road_asphalt_2lane',  width: 4,   textureLength: 15, renderPriority: 10 },
   service:        { material: 'road_asphalt_2lane',  width: 4,   textureLength: 12, renderPriority: 10 },
+  raceway:        { material: 'road_asphalt_2lane',  width: 6,   textureLength: 20, renderPriority: 12 },
+  busway:         { material: 'road_asphalt_2lane',  width: 4,   textureLength: 15, renderPriority: 11 },
   track:          { material: 'm_dirt_road_gravels',  width: 4,   textureLength: 12, renderPriority: 9  },
 };
 

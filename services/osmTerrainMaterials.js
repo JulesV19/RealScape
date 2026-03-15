@@ -72,11 +72,24 @@ const ROAD_STYLE = {
   unclassified:   { mat: 5, halfWidthM: 4.0 },
   road:           { mat: 5, halfWidthM: 4.0 },
   service:        { mat: 5, halfWidthM: 2.5 },
+  raceway:        { mat: 5, halfWidthM: 6.0 },
+  busway:         { mat: 5, halfWidthM: 4.0 },
   pedestrian:     { mat: 7, halfWidthM: 4.0 },
   track:          { mat: 6, halfWidthM: 2.5 },
   footway:        { mat: 7, halfWidthM: 1.2 },
   cycleway:       { mat: 7, halfWidthM: 1.2 },
   path:           { mat: 6, halfWidthM: 1.0 },
+};
+
+// Linear waterway types → half-width in metres for terrain-layer rasterisation.
+// Painted as index 0 (DefaultMaterial / satellite) so BeamNG WaterBlock objects
+// sit on top of the correct base texture.
+const WATERWAY_STYLE = {
+  river:  { halfWidthM: 12.0 },
+  canal:  { halfWidthM:  6.0 },
+  stream: { halfWidthM:  2.5 },
+  drain:  { halfWidthM:  2.0 },
+  ditch:  { halfWidthM:  1.5 },
 };
 
 // ── Coordinate conversion ──────────────────────────────────────────────────
@@ -168,27 +181,38 @@ function areaMatIndex(feature) {
   const nat = t.natural, lu = t.landuse, lei = t.leisure, am = t.amenity, sur = t.surface;
 
   if (nat === 'grass' || nat === 'meadow' || nat === 'heath') return 1;
+  if (nat === 'grassland' || nat === 'shrub') return 1;
   if (nat === 'wood' || nat === 'scrub' || nat === 'shrubbery') return 1;
   if (nat === 'sand' || nat === 'beach' || nat === 'dune') return 3;
   if (nat === 'bare_rock' || nat === 'rock' || nat === 'scree' || nat === 'cliff') return 4;
+  if (nat === 'shingle') return 4;
+  if (nat === 'mud') return 2;
   if (nat === 'water' || nat === 'wetland') return -1;
 
   if (lu === 'grass' || lu === 'meadow' || lu === 'village_green') return 1;
   if (lu === 'recreation_ground' || lu === 'allotments' || lu === 'cemetery') return 1;
   if (lu === 'orchard' || lu === 'vineyard') return 1;
   if (lu === 'forest' || lu === 'wood') return 1;
+  if (lu === 'religious' || lu === 'greenfield') return 1;
   if (lu === 'farmland' || lu === 'farmyard' || lu === 'greenhouse_horticulture') return 2;
+  if (lu === 'brownfield' || lu === 'construction' || lu === 'landfill') return 2;
+  if (lu === 'military') return 2;
   if (lu === 'industrial') return 7;
   if (lu === 'commercial' || lu === 'retail') return 7;
+  if (lu === 'garages') return 5;
   if (lu === 'residential') return 1;
   if (lu === 'quarry') return 4;
+  if (lu === 'railway') return 6;
+  if (lu === 'reservoir' || lu === 'basin') return -1; // handled by water pass
 
   if (lei === 'park' || lei === 'garden' || lei === 'playground') return 1;
   if (lei === 'recreation_ground' || lei === 'pitch' || lei === 'golf_course') return 1;
+  if (lei === 'nature_reserve' || lei === 'common' || lei === 'dog_park') return 1;
   if (lei === 'sports_centre' || lei === 'stadium') return 7;
   if (lei === 'beach_resort') return 3;
+  if (lei === 'track') return 5;
 
-  if (am === 'parking') return 5;
+  if (am === 'parking' || am === 'fuel') return 5;
 
   if (sur === 'asphalt' || sur === 'paved') return 5;
   if (sur === 'concrete') return 7;
@@ -326,17 +350,38 @@ export async function buildTerrainMaterials(terrainData, worldSize, levelName, s
     rasterizePolygon(layerMap, size, ring, matIdx);
   }
 
-  // 1b. Paint water bodies on top of area fills.
+  // 1b. Paint water AREA bodies on top of area fills.
   // Water is painted in a separate pass so it overrides land-use fills (e.g. a pond
   // inside a residential area painted as Grass). Index 0 = DefaultMaterial which shows
   // the satellite base — BeamNG WaterBlock objects sit on top of this.
+  // NOTE: linear waterways (river, stream, etc.) are handled in pass 1c below.
   for (const feature of osmFeatures) {
     if (feature.type === 'road' || !feature.geometry?.length) continue;
     const t = feature.tags || {};
-    const isWater = t.natural === 'water' || t.natural === 'wetland' || t.water || t.waterway;
-    if (!isWater) continue;
+    const isWaterArea =
+      t.natural === 'water' || t.natural === 'wetland' ||
+      t.water ||                              // water=pond, water=lake, etc.
+      t.landuse === 'reservoir' || t.landuse === 'basin' ||
+      t.leisure === 'swimming_pool' ||
+      // Area-type waterway tags (closed rings like riverbank, dock)
+      ['riverbank', 'dock', 'boatyard', 'dam'].includes(t.waterway);
+    if (!isWaterArea) continue;
     const ring = feature.geometry.map(pt => geoToTerrainPx(pt.lat, pt.lng, bounds, size));
     rasterizePolygon(layerMap, size, ring, 0); // 0 = DefaultMaterial
+  }
+
+  // 1c. Paint linear waterways (river, stream, canal, drain, ditch) as strips.
+  // These are stored as type='water' with a non-closed geometry in osmFeatures.
+  for (const feature of osmFeatures) {
+    if (!feature.geometry?.length || feature.type !== 'water') continue;
+    const t = feature.tags || {};
+    const wStyle = WATERWAY_STYLE[t.waterway];
+    if (!wStyle) continue;
+    const halfPx = Math.max(1, wStyle.halfWidthM / metersPerPixel);
+    const pts = feature.geometry.map(pt => geoToTerrainPx(pt.lat, pt.lng, bounds, size));
+    for (let i = 0; i < pts.length - 1; i++) {
+      rasterizeSegment(layerMap, size, pts[i].px, pts[i].py, pts[i + 1].px, pts[i + 1].py, halfPx, 0);
+    }
   }
 
   // 2. Paint roads (overrides area fills)
