@@ -119,7 +119,7 @@ const loadTexture = (url) => {
 
 // Helper to create texture directly from canvas (skips PNG encode/decode).
 // onUploaded: optional callback fired after the GPU upload completes (2 frames).
-//   Use it to free the canvas from CPU memory — the GPU retains the data.
+//   Use it to free external canvas references from terrainData.
 const loadCanvasTexture = (canvas, onUploaded) => {
   if (!canvas) return null;
   const tex = new THREE.CanvasTexture(canvas);
@@ -134,8 +134,9 @@ const loadCanvasTexture = (canvas, onUploaded) => {
   tex.needsUpdate = true;
   if (onUploaded) {
     // Two rAF frames is enough for the WebGL renderer to call texImage2D.
+    // Do NOT null tex.image here — Three.js needs it for correct state management.
+    // Instead we only free the external terrainData canvas reference via onUploaded.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      tex.image = null; // release canvas reference from the texture object
       onUploaded();
     }));
   }
@@ -170,7 +171,12 @@ watch(() => props.terrainData?.hybridTextureUrl, (url) => {
     canvasCache.hybrid = canvas;
     textureCache.hybrid = loadCanvasTexture(canvas, () => {
       canvasCache.hybrid = null;
-      if (props.terrainData) props.terrainData.hybridTextureCanvas = null;
+      if (props.terrainData) {
+        // Save dimensions before clearing so exportBeamNGLevel can still determine
+        // the correct baseTexSize for PBR material generation.
+        props.terrainData.hybridTexWidth = canvas.width;
+        props.terrainData.hybridTextureCanvas = null;
+      }
     });
   } else {
     canvasCache.hybrid = null;

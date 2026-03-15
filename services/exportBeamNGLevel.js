@@ -806,7 +806,12 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
 
   report('Painting OSM terrain materials…', 5);
   await yield_();
-  const satelliteTexSize = exportTerrainData.hybridTextureCanvas?.width ?? exportTerrainData.width;
+  const satelliteTexSize = Math.min(
+    exportTerrainData.hybridTextureCanvas?.width ??
+    exportTerrainData.hybridTexWidth ??
+    exportTerrainData.width,
+    4096  // cap to avoid OOM allocating >256 MB neutral PBR textures
+  );
   const pbrResult = generatePbrMaterials
     ? await buildTerrainMaterials(exportTerrainData, worldSize, levelName, satelliteTexSize)
     : null;

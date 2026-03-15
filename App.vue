@@ -1,4 +1,9 @@
 <template>
+  <!-- Memory Widget — always on top -->
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none">
+    <MemoryWidget />
+  </div>
+
   <!-- Mobile Restriction Overlay -->
   <MobileRestrictionOverlay />
 
@@ -155,6 +160,7 @@ import { storeToRefs } from 'pinia';
 import { useMainStore } from './stores/mainStore';
 import { Loader2 } from 'lucide-vue-next';
 import MobileRestrictionOverlay from './components/modals/MobileRestrictionOverlay.vue';
+import MemoryWidget from './components/ui/MemoryWidget.vue';
 import AboutModal from './components/modals/AboutModal.vue';
 import DisclaimerModal from './components/modals/DisclaimerModal.vue';
 import TechStackModal from './components/modals/TechStackModal.vue';
