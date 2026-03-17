@@ -1,7 +1,8 @@
 const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
 ];
 
 let lastOSMRequestInfo = null;
@@ -152,7 +153,7 @@ const buildQuery = (bounds) => {
   const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
 
   return `
-  [out:json][timeout:180][maxsize:1073741824];
+  [out:json][timeout:180][maxsize:536870912];
   (
     // --- Your existing core layers ---
     way["highway"](${bbox});
@@ -217,10 +218,6 @@ const buildQuery = (bounds) => {
 
     way["material"](${bbox});
     relation["material"](${bbox});
-    way["golf"](${bbox});
-    relation["golf"](${bbox});
-    way["recreation"](${bbox});
-    relation["recreation"](${bbox});
 
     // Wetlands, water areas, coastlines, beaches, etc.
     // water=* is commonly used with natural=water or landuse=reservoir, but can appear standalone.
@@ -942,7 +939,14 @@ export const fetchOSMData = async (bounds) => {
         continue; // Try next endpoint
       }
 
-      const data = await response.json();
+      const rawText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (jsonErr) {
+        console.error(`[OSM] ${endpoint} returned non-JSON (${response.status}):`, rawText.slice(0, 800));
+        throw jsonErr;
+      }
       console.log(
         `[OSM] Received ${data.elements?.length || 0} elements from ${endpoint}.`,
       );
