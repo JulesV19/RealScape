@@ -282,6 +282,30 @@
             </select>
           </div>
 
+          <div class="flex items-center justify-between gap-2 px-0.5">
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Water</span>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" v-model="beamNGIncludeWater" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">Lakes and rivers</span>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 px-0.5">
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Trees/Bushes</span>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" v-model="beamNGIncludeTrees" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">Native forest items</span>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 px-0.5">
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Rocks</span>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" v-model="beamNGIncludeRocks" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">Quarry/rock cover</span>
+            </label>
+          </div>
+
           <!-- Export button -->
           <button
             @click="handleBeamNGLevelExport"
@@ -439,6 +463,9 @@ const beamNGProgressStep = ref('');
 const beamNGProgressPct  = ref(0);
 const beamNGBaseTexture = ref('hybrid');
 const beamNGIncludeBackdrop = ref(false);
+const beamNGIncludeWater = ref(localStorage.getItem('mapng_beamNGIncludeWater') !== 'false');
+const beamNGIncludeTrees = ref(localStorage.getItem('mapng_beamNGIncludeTrees') !== 'false');
+const beamNGIncludeRocks = ref(localStorage.getItem('mapng_beamNGIncludeRocks') === 'true');
 
 const isAnyExporting = computed(() => (
   isExportingHeightmap.value ||
@@ -476,6 +503,9 @@ watch(showExport2D, (v) => localStorage.setItem('mapng_showExport2D', String(v))
 watch(showExport3D, (v) => localStorage.setItem('mapng_showExport3D', String(v)));
 watch(showExportBeamNG, (v) => localStorage.setItem('mapng_showExportBeamNG', String(v)));
 watch(beamNGPbrSource, (v) => localStorage.setItem('mapng_beamNGPbrSource', v));
+watch(beamNGIncludeWater, (v) => localStorage.setItem('mapng_beamNGIncludeWater', String(v)));
+watch(beamNGIncludeTrees, (v) => localStorage.setItem('mapng_beamNGIncludeTrees', String(v)));
+watch(beamNGIncludeRocks, (v) => localStorage.setItem('mapng_beamNGIncludeRocks', String(v)));
 watch(showExportGeo, (v) => localStorage.setItem('mapng_showExportGeo', String(v)));
 
 // Generate a small grayscale heightmap preview
@@ -931,6 +961,9 @@ const handleBeamNGLevelExport = async () => {
       baseTexture: beamNGBaseTexture.value,
       includeBackdrop: beamNGIncludeBackdrop.value,
       pbrSource: beamNGPbrSource.value,
+      includeWater: beamNGIncludeWater.value,
+      includeTrees: beamNGIncludeTrees.value,
+      includeRocks: beamNGIncludeRocks.value,
       onProgress: ({ step, pct }) => {
         beamNGProgressStep.value = step;
         beamNGProgressPct.value  = pct;

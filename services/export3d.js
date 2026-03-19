@@ -587,7 +587,8 @@ const createTerrainMesh = async (data, maxMeshResolution = 1024, centerTextureTy
   });
 };
 
-export const createOSMGroup = (data) => {
+export const createOSMGroup = (data, options = {}) => {
+  const { includeVegetation = true } = options;
   const group = new THREE.Group();
   if (!data.osmFeatures || data.osmFeatures.length === 0) return group;
 
@@ -851,7 +852,7 @@ export const createOSMGroup = (data) => {
       else if (f.tags.highway === "give_way") subtype = "give_way";
       else if (f.tags.traffic_sign) subtype = "generic";
       streetFurnitureList.push({ pos: v, subtype, tags: f.tags });
-    } else if (f.type === "vegetation") {
+    } else if (includeVegetation && f.type === "vegetation") {
       const isTree =
         f.tags.natural === "tree" ||
         f.tags.natural === "wood" ||

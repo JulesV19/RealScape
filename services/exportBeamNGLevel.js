@@ -349,8 +349,8 @@ async function generateHeightmapPng(terrainData, maxSize = 2048) {
 }
 
 /**
- * Generate a Collada (.dae) Blob containing all OSM 3D objects (buildings,
- * trees, barriers, street furniture) in BeamNG world-space coordinates.
+ * Generate a Collada (.dae) Blob containing BeamNG-safe OSM 3D objects
+ * (buildings, barriers, street furniture) in world-space coordinates.
  *
  * Coordinate transform — Three.js scene-space (Y-up, normalized 0–100 units)
  * → BeamNG world-space (Z-up, real metres, origin at terrain centre):
@@ -371,7 +371,7 @@ async function generateHeightmapPng(terrainData, maxSize = 2048) {
 async function generateOSMObjectsDAE(terrainData, worldSize) {
   if (!terrainData.osmFeatures?.length) return null;
 
-  const osmGroup = createOSMGroup(terrainData);
+  const osmGroup = createOSMGroup(terrainData, { includeVegetation: false });
 
   // Verify there is at least one mesh child — an empty group means no features
   // were of a type that produces geometry (e.g. only road centrelines).
@@ -747,6 +747,1151 @@ function toNDJSON(objects) {
   return objects.map(o => JSON.stringify(o)).join('\n') + '\n';
 }
 
+const WATERWAY_WIDTHS = {
+  river: 26,
+  canal: 14,
+  stream: 8,
+  drain: 4,
+  ditch: 3,
+};
+
+const WATERWAY_DEPTHS = {
+  river: 8,
+  canal: 5,
+  stream: 3,
+  drain: 2,
+  ditch: 1.5,
+};
+
+const ITALY_FOREST_ITEM_TEMPLATES = {
+  cypress_tree: {
+    name: 'cypress_tree',
+    internalName: 'cypress_tree',
+    class: 'TSForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    detailAmp: 0.0799999982,
+    detailFreq: 1.5,
+    mass: 10,
+    radius: 0.800000012,
+    rigidity: 10.1999998,
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/cypress_tree.dae',
+    tightnessCoefficient: 1,
+    trunkBendScale: 0.0500000007,
+    windScale: 0.300000012,
+  },
+  holm_oak_city_small: {
+    name: 'holm_oak_city_small',
+    internalName: 'holm_oak_city_small',
+    class: 'TSForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    detailAmp: 0.200000003,
+    detailFreq: 0.5,
+    mass: 10,
+    radius: 0.699999988,
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/holm_oak_city_small.dae',
+    tightnessCoefficient: 1,
+    trunkBendScale: 0.0500000007,
+    windScale: 0.5,
+  },
+  maritime_pine_tree: {
+    name: 'maritime_pine_tree',
+    internalName: 'maritime_pine_tree',
+    class: 'TSForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    dampingCoefficient: 3,
+    detailAmp: 0.119999997,
+    detailFreq: 1.5,
+    mass: 10,
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/maritime_pine.dae',
+    tightnessCoefficient: 1,
+    trunkBendScale: 0.0700000003,
+    windScale: 0.5,
+  },
+  olive_tree: {
+    name: 'olive_tree',
+    internalName: 'olive_tree',
+    class: 'TSForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    dampingCoefficient: 3,
+    detailAmp: 5,
+    detailFreq: 0.100000001,
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/olive.dae',
+    tightnessCoefficient: 1,
+    trunkBendScale: 0.0500000007,
+    windScale: 0.5,
+  },
+  italy_palm_1: {
+    name: 'italy_palm_1',
+    internalName: 'italy_palm_1',
+    class: 'TSForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    dampingCoefficient: 3,
+    detailAmp: 0.300000012,
+    detailFreq: 0.5,
+    dynamicCubemap: '0',
+    planarReflection: '0',
+    rigidity: 20,
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/italy_palm_1.dae',
+    tightnessCoefficient: 1,
+    translucentBlendOp: 'LerpAlpha',
+    trunkBendScale: 0.0299999993,
+    windScale: 0.5,
+  },
+  generibush: {
+    name: 'generibush',
+    internalName: 'generibush',
+    class: 'ForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    dampingCoefficient: 3,
+    detailAmp: 5,
+    detailFreq: 0.0700000003,
+    dynamicCubemap: '0',
+    planarReflection: '0',
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/generibush.dae',
+    snapRotationToTerrain: true,
+    tightnessCoefficient: 1,
+    translucentBlendOp: 'LerpAlpha',
+    trunkBendScale: 0.0500000007,
+    windScale: 0.5,
+  },
+  holm_oak_bush_huge: {
+    name: 'holm_oak_bush_huge',
+    internalName: 'holm_oak_bush_huge',
+    class: 'ForestItemData',
+    annotation: 'NATURE',
+    branchAmp: 0.100000001,
+    detailAmp: 0.200000003,
+    detailFreq: 0.5,
+    mass: 10,
+    shapeFile: 'levels/italy/art/shapes/trees/trees_italy/holm_oak_bush_huge.dae',
+    tightnessCoefficient: 1,
+    trunkBendScale: 0.0500000007,
+    windScale: 0.5,
+  },
+  italy_rockface_boulder_1: {
+    name: 'italy_rockface_boulder_1',
+    internalName: 'italy_rockface_boulder_1',
+    class: 'ForestItemData',
+    dampingCoefficient: 3,
+    dynamicCubemap: '0',
+    planarReflection: '0',
+    radius: 0.699999988,
+    shapeFile: 'levels/italy/art/shapes/rocks/italy_rockface_boulder_1.dae',
+    snapRotationToTerrain: true,
+    tightnessCoefficient: 1,
+    translucentBlendOp: 'LerpAlpha',
+  },
+  italy_rockface_boulder_2: {
+    name: 'italy_rockface_boulder_2',
+    internalName: 'italy_rockface_boulder_2',
+    class: 'ForestItemData',
+    dampingCoefficient: 3,
+    dynamicCubemap: '0',
+    planarReflection: '0',
+    radius: 0.699999988,
+    shapeFile: 'levels/italy/art/shapes/rocks/italy_rockface_boulder_2.dae',
+    snapRotationToTerrain: true,
+    tightnessCoefficient: 1,
+    translucentBlendOp: 'LerpAlpha',
+  },
+  italy_rockface_boulder_3: {
+    name: 'italy_rockface_boulder_3',
+    internalName: 'italy_rockface_boulder_3',
+    class: 'ForestItemData',
+    dampingCoefficient: 3,
+    dynamicCubemap: '0',
+    planarReflection: '0',
+    radius: 0.699999988,
+    shapeFile: 'levels/italy/art/shapes/rocks/italy_rockface_boulder_3.dae',
+    snapRotationToTerrain: true,
+    tightnessCoefficient: 1,
+    translucentBlendOp: 'LerpAlpha',
+  },
+  italy_rockface_boulder_4: {
+    name: 'italy_rockface_boulder_4',
+    internalName: 'italy_rockface_boulder_4',
+    class: 'ForestItemData',
+    dampingCoefficient: 3,
+    dynamicCubemap: '0',
+    planarReflection: '0',
+    radius: 0.699999988,
+    shapeFile: 'levels/italy/art/shapes/rocks/italy_rockface_boulder_4.dae',
+    snapRotationToTerrain: true,
+    tightnessCoefficient: 1,
+    translucentBlendOp: 'LerpAlpha',
+  },
+};
+
+const WATER_BLOCK_TEMPLATE = {
+  class: 'WaterBlock',
+  Foam: [{}, {}],
+  'Ripples (texture animation)': [
+    { rippleDir: [0, 1], rippleMagnitude: 0.8, rippleSpeed: 0.001, rippleTexScale: [12, 12] },
+    { rippleDir: [0, 1], rippleSpeed: 0.02, rippleTexScale: [6, 6] },
+    { rippleDir: [0.7, -0.7], rippleMagnitude: 1, rippleSpeed: 0.02, rippleTexScale: [3, 3] },
+  ],
+  'Waves (vertex undulation)': [
+    { waveDir: [0, 1], waveMagnitude: 0.2, waveSpeed: 1 },
+    { waveDir: [0.707, 0.707], waveMagnitude: 0.2, waveSpeed: 1 },
+    { waveDir: [0.5, 0.86], waveMagnitude: 0.2, waveSpeed: 1 },
+  ],
+  baseColor: [189, 253, 255, 255],
+  cubemap: 'cubemap_italy_reflection',
+  depthGradientMax: 30,
+  depthGradientTex: '/levels/italy/art/water/depthcolor_ramp_italy_muddy.png',
+  foamAmbientLerp: 1.29999995,
+  foamMaxDepth: 0.150000006,
+  foamRippleInfluence: 0.0149999997,
+  foamTex: 'levels/italy/art/water/foam2.dds',
+  fresnelBias: 0.2,
+  fresnelPower: 20,
+  fullReflect: false,
+  gridElementSize: 1,
+  gridSize: 1,
+  overallRippleMagnitude: 0.2,
+  overallWaveMagnitude: 0,
+  reflectivity: 0.8,
+  rippleTex: '/levels/italy/art/water/ripple.dds',
+  specularPower: 200,
+  waterFogDensity: 1,
+  waterFogDensityOffset: 0.1,
+  wetDarkening: 0.5,
+  wetDepth: 0.2,
+};
+
+const RIVER_TEMPLATE = {
+  class: 'River',
+  Foam: [{}, {}],
+  'Ripples (texture animation)': [
+    { rippleDir: [0, 1], rippleMagnitude: 1.5, rippleSpeed: 0.1, rippleTexScale: [2, 2] },
+    { rippleDir: [0, 1], rippleMagnitude: 2, rippleSpeed: 0.2, rippleTexScale: [5, 5] },
+    { rippleDir: [0.1, 0.9], rippleMagnitude: 1, rippleSpeed: 0.01, rippleTexScale: [20, 20] },
+  ],
+  'Waves (vertex undulation)': [
+    { waveDir: [-0.5, 0.8], waveMagnitude: 0.2, waveSpeed: 2 },
+    { waveDir: [0.1, -1.5], waveMagnitude: 0.2, waveSpeed: 2 },
+    { waveDir: [0.1, 0.5], waveMagnitude: 0.2, waveSpeed: 3 },
+  ],
+  baseColor: [254, 220, 165, 255],
+  cubemap: 'cubemap_ocean_reflection',
+  depthGradientMax: 20,
+  depthGradientTex: 'levels/italy/art/water/depthcolor_ramp_italy_rivers.png',
+  flowMagnitudePhysics: 4,
+  foamMaxDepth: 1,
+  foamRippleInfluence: 0.09,
+  foamTex: 'core/art/water/foam.dds',
+  fresnelBias: 0.5,
+  fresnelPower: 5,
+  fullReflect: false,
+  lowLODDistance: 150,
+  overallFoamOpacity: 3,
+  overallRippleMagnitude: 1.2,
+  overallWaveMagnitude: 0.5,
+  reflectDetailAdjust: -2,
+  reflectMaxRateMs: 10,
+  reflectivity: 0.3,
+  rippleTex: 'levels/italy/art/water/ripple3.dds',
+  subdivideLength: 2,
+  underwaterColor: [254, 253, 252, 250],
+  waterFogDensity: 0.8,
+  waterFogDensityOffset: 0,
+  wetDarkening: 0.3,
+  wetDepth: 0.35,
+};
+
+const ITALY_FOREST_MATERIAL_DEFS = {
+  Oak_bark_01: {
+    name: 'Oak_bark_01',
+    mapTo: 'Oak_bark_01',
+    class: 'Material',
+    persistentId: 'deea0fd0-e378-4269-adf6-866838feeff1',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_bark_ao.data.png',
+      baseColorFactor: [0.862744987, 0.862744987, 0.862744987, 1],
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_bark_b.color.png',
+      detailNormalMapStrength: 0.5,
+      detailScale: [1, 1],
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_bark_nm.normal.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_bark_r.data.png',
+    }, {}, {}, {}],
+    annotation: 'NATURE',
+    groundType: 'WOOD',
+    materialTag0: 'beamng',
+    materialTag1: 'beamng',
+    materialTag2: 'Natural',
+    materialTag3: 'vegetation',
+    roundType: 'WOOD',
+    specularStrength0: '0.392157',
+    version: 1.5,
+  },
+  holm_oak_branches: {
+    name: 'holm_oak_branches',
+    mapTo: 'holm_oak_branches',
+    class: 'Material',
+    persistentId: '4a22acc4-61c7-4767-9174-cd83c9996e3f',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_holm_oak_branches_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_holm_oak_branches_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_holm_oak_branches_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_holm_oak_branches_o.data.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_holm_oak_branches_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 100,
+    alphaTest: true,
+    annotation: 'NATURE',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    specularStrength0: '0.490196',
+    version: 1.5,
+  },
+  oak_leaves_02: {
+    name: 'oak_leaves_02',
+    mapTo: 'oak_leaves_02',
+    class: 'Material',
+    persistentId: '21c59c4c-3e55-4591-a9f3-9e1652ff7679',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_02_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_02_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_02_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_02_o.data.png',
+      pixelSpecular: true,
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_02_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 75,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    groundType: 'LEAVES_THIN',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    translucentZWrite: true,
+    version: 1.5,
+  },
+  oak_leaves_01: {
+    name: 'oak_leaves_01',
+    mapTo: 'oak_leaves_01',
+    class: 'Material',
+    persistentId: '8e283949-b0df-43fd-9dbd-108b9b743618',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_o.data.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_oak_leaves_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 75,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    groundType: 'LEAVES_THIN',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    translucentBlendOp: 'None',
+    translucentZWrite: true,
+    version: 1.5,
+  },
+  m_italy_merged_foliage: {
+    name: 'm_italy_merged_foliage',
+    mapTo: 'm_italy_merged_foliage',
+    class: 'Material',
+    Stages: [{
+      colorMap: '/levels/italy/art/shapes/trees/trees_italy/t_italy_merged_foliage_d.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_italy_merged_foliage_nm.normal.png',
+      specularMap: '/levels/italy/art/shapes/trees/trees_italy/t_italy_merged_foliage_s.color.png',
+      useAnisotropic: true,
+    }, { useAnisotropic: null }, { useAnisotropic: null }, { useAnisotropic: null }],
+    alphaRef: 80,
+    alphaTest: true,
+    doubleSided: true,
+    translucentZWrite: true,
+  },
+  generibush_leaves: {
+    name: 'generibush_leaves',
+    mapTo: 'generibush_leaves',
+    class: 'Material',
+    persistentId: '7c594c09-94d1-45ca-9e30-2c12d24652d4',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_generic_bush_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_generic_bush_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_generic_bush_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_generic_bush_o.data.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_generic_bush_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 84,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  leaves_strong: {
+    name: 'leaves_strong',
+    mapTo: 'leaves_strong',
+    class: 'Material',
+    persistentId: '9cc05c64-9d9f-476a-8847-70a51f40e92a',
+    Stages: [{}, {}, {}, {}],
+    annotation: 'NATURE',
+    groundDepth: 0.600000024,
+    groundType: 'leaves_strong',
+  },
+  leaves_thin: {
+    name: 'leaves_thin',
+    mapTo: 'leaves_thin',
+    class: 'Material',
+    persistentId: '8c4a4a97-e0b5-4ffb-9429-bab0f8e4969e',
+    Stages: [{}, {}, {}, {}],
+    annotation: 'NATURE',
+    groundDepth: 1,
+    groundType: 'leaves_thin',
+  },
+  olive: {
+    name: 'olive',
+    mapTo: 'olive',
+    class: 'Material',
+    persistentId: '186db53d-a920-4f77-b434-4a83761f3fe5',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_o.data.png',
+      pixelSpecular: true,
+      roughnessFactor: 1,
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 85,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  olive_branches: {
+    name: 'olive_branches',
+    mapTo: 'olive_branches',
+    class: 'Material',
+    persistentId: '14719570-3402-46e0-ae7d-df40658493d4',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_branches_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_branches_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_branches_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_branches_o.data.png',
+      pixelSpecular: true,
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_branches_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 100,
+    alphaTest: true,
+    annotation: 'NATURE',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  olive_trunk: {
+    name: 'olive_trunk',
+    mapTo: 'olive_trunk',
+    class: 'Material',
+    persistentId: '107e77e9-250a-4837-bf1d-df00789e43e7',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_trunk_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_trunk_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_trunk_nm.normal.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_olive_trunk_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 85,
+    annotation: 'NATURE',
+    groundType: 'WOOD',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  cypress: {
+    name: 'cypress',
+    mapTo: 'cypress',
+    class: 'Material',
+    persistentId: '9db1e299-b9ca-4e8e-9e86-1dd51386c157',
+    Stages: [{
+      colorMap: '/levels/italy/art/shapes/trees/trees_italy/t_cypress_leaves_d.color.png',
+      minnaertConstant: -2,
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_cypress_leaves_nm.normal.png',
+      pixelSpecular: true,
+      specularMap: '/levels/italy/art/shapes/trees/trees_italy/t_cypress_leaves_s.color.png',
+      useAnisotropic: true,
+    }, { minnaertConstant: null, pixelSpecular: null, useAnisotropic: null }, { minnaertConstant: null, pixelSpecular: null, useAnisotropic: null }, { minnaertConstant: null, pixelSpecular: null, useAnisotropic: null }],
+    alphaRef: 75,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    materialTag3: 'Natural',
+    translucentBlendOp: 'None',
+  },
+  italy_palm_1_foliage: {
+    name: 'italy_palm_1_foliage',
+    mapTo: 'italy_palm_1_foliage',
+    class: 'Material',
+    persistentId: 'ac0e844d-476e-4f02-bfa3-742f0da01a77',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_o.data.png',
+      pixelSpecular: true,
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 100,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  italy_palm_1_trunk: {
+    name: 'italy_palm_1_trunk',
+    mapTo: 'italy_palm_1_trunk',
+    class: 'Material',
+    persistentId: '3f342584-7728-4880-8262-355551202095',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_trunk_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_trunk_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_trunk_nm.normal.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_fan_palm_trunk_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 85,
+    annotation: 'NATURE',
+    groundType: 'WOOD',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  scots_pine: {
+    name: 'scots_pine',
+    mapTo: 'scots_pine',
+    class: 'Material',
+    persistentId: 'e8f32c57-88d9-4695-808b-6282d597aade',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_ao.data.png',
+      baseColorFactor: [0.999989986, 1, 0.999994993, 1],
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_b.color.png',
+      minnaertConstant: -2,
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_o.data.png',
+      pixelSpecular: true,
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 93,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    groundType: 'FOLIAGE_THIN',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    materialTag3: 'Natural',
+    version: 1.5,
+  },
+  scots_pine_branches: {
+    name: 'scots_pine_branches',
+    mapTo: 'scots_pine_branches',
+    class: 'Material',
+    persistentId: '132fad37-3917-4fd8-afda-5da8d13e4497',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_branches_o.data.png',
+      baseColorFactor: [0.996078014, 0.996078014, 0.996078014, 1],
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_branches_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_branches_nm.normal.png',
+      opacityMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_branches_o.data.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_branches_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 100,
+    alphaTest: true,
+    annotation: 'NATURE',
+    groundType: 'FOLIAGE_THIN',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+  scots_pine_trunk: {
+    name: 'scots_pine_trunk',
+    mapTo: 'scots_pine_trunk',
+    class: 'Material',
+    persistentId: '69c92e20-11c6-4cd9-95ab-db7b46525f14',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_bark_ao.data.png',
+      baseColorMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_bark_b.color.png',
+      normalMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_bark_nm.normal.png',
+      roughnessMap: '/levels/italy/art/shapes/trees/trees_italy/t_scots_pine_bark_r.data.png',
+    }, {}, {}, {}],
+    alphaRef: 85,
+    annotation: 'NATURE',
+    groundType: 'WOOD',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    materialTag2: 'Natural',
+    version: 1.5,
+  },
+};
+
+const ITALY_GROUNDCOVER_MATERIAL_DEFS = {
+  GrassMiddle: {
+    name: 'GrassMiddle',
+    mapTo: 'unmapped_mat',
+    class: 'Material',
+    persistentId: 'c6552e8a-3784-44da-998b-3dca87552aca',
+    Stages: [{
+      colorMap: 'levels/italy/art/shapes/groundcover/Grass_Middle_d.dds',
+      diffuseColor: [0.996078491, 0.996078491, 0.996078491, 1],
+      normalMap: '/levels/italy/art/shapes/groundcover/Grass_green_n.normal.png',
+      roughnessFactor: 0.481729716,
+      specular: [0.992156923, 0.992156923, 0.992156923, 1],
+      specularMap: '/levels/italy/art/shapes/groundcover/Grass_green_s.color.png',
+      useAnisotropic: true,
+    }, {}, {}, {}],
+    alphaRef: 95,
+    alphaTest: true,
+    annotation: 'NATURE',
+    doubleSided: true,
+    groundType: 'GRASS',
+    materialTag0: 'beamng',
+    materialTag1: 'vegetation',
+    translucentBlendOp: 'None',
+  },
+};
+
+function roundTo(value, places = 3) {
+  const f = 10 ** places;
+  return Math.round(value * f) / f;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function isClosedRing(points) {
+  if (!Array.isArray(points) || points.length < 4) return false;
+  const a = points[0];
+  const b = points[points.length - 1];
+  return a.lat === b.lat && a.lng === b.lng;
+}
+
+function getTerrainHeightWorld(lat, lng, terrainData) {
+  const { bounds, width, height, heightMap, minHeight } = terrainData;
+  const u = Math.max(0, Math.min(1, (lng - bounds.west) / (bounds.east - bounds.west)));
+  const v = Math.max(0, Math.min(1, (bounds.north - lat) / (bounds.north - bounds.south)));
+  const fx = u * (width - 1);
+  const fy = v * (height - 1);
+  const c0 = Math.min(width - 1, Math.floor(fx));
+  const c1 = Math.min(width - 1, c0 + 1);
+  const r0 = Math.min(height - 1, Math.floor(fy));
+  const r1 = Math.min(height - 1, r0 + 1);
+  const tx = fx - c0;
+  const ty = fy - r0;
+  const h00 = heightMap[r0 * width + c0];
+  const h10 = heightMap[r0 * width + c1];
+  const h01 = heightMap[r1 * width + c0];
+  const h11 = heightMap[r1 * width + c1];
+  return (h00 * (1 - tx) * (1 - ty) + h10 * tx * (1 - ty) + h01 * (1 - tx) * ty + h11 * tx * ty) - minHeight;
+}
+
+function geoToWorldPoint(lat, lng, terrainData, squareSize, zOffset = 0) {
+  const { bounds, width } = terrainData;
+  const worldSize = width * squareSize;
+  const u = Math.max(0, Math.min(1, (lng - bounds.west) / (bounds.east - bounds.west)));
+  const v = Math.max(0, Math.min(1, (bounds.north - lat) / (bounds.north - bounds.south)));
+  return [
+    (u - 0.5) * worldSize,
+    (0.5 - v) * worldSize,
+    getTerrainHeightWorld(lat, lng, terrainData) + zOffset,
+  ];
+}
+
+function rotationMatrixFromYaw(yaw) {
+  const c = roundTo(Math.cos(yaw), 6);
+  const s = roundTo(Math.sin(yaw), 6);
+  return [c, s, 0, -s, c, 0, 0, 0, 1];
+}
+
+function pointInPolygonLatLng(point, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i].lng;
+    const yi = ring[i].lat;
+    const xj = ring[j].lng;
+    const yj = ring[j].lat;
+    const intersects = ((yi > point.lat) !== (yj > point.lat)) &&
+      (point.lng < ((xj - xi) * (point.lat - yi)) / ((yj - yi) || 1e-12) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInPolygonWorld(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    const intersect = ((yi > y) !== (yj > y))
+      && (x < (((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9)) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function hashString(value) {
+  let hash = 2166136261;
+  const input = String(value);
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededRandom(seed) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+function simplifyPolyline(points, maxPoints = 80) {
+  if (!Array.isArray(points) || points.length <= maxPoints) return points;
+  const out = [points[0]];
+  const interior = points.length - 2;
+  const targetInterior = Math.max(0, maxPoints - 2);
+  const step = interior / Math.max(1, targetInterior);
+  for (let i = 1; i <= targetInterior; i++) {
+    out.push(points[Math.min(points.length - 2, Math.round(i * step))]);
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
+function isExcludedWaterFeature(tags = {}) {
+  return (
+    tags.place === 'sea' ||
+    tags.place === 'ocean' ||
+    tags.natural === 'bay' ||
+    tags.water === 'dock' ||
+    tags.water === 'harbour' ||
+    tags.harbour === 'yes' ||
+    tags.leisure === 'marina'
+  );
+}
+
+function percentileValue(sortedValues, fraction) {
+  if (!sortedValues.length) return 0;
+  const idx = clamp(Math.floor((sortedValues.length - 1) * fraction), 0, sortedValues.length - 1);
+  return sortedValues[idx];
+}
+
+function computeBestFitWaterBlock(worldPoints) {
+  let cx = 0;
+  let cy = 0;
+  for (const pt of worldPoints) {
+    cx += pt[0];
+    cy += pt[1];
+  }
+  cx /= worldPoints.length;
+  cy /= worldPoints.length;
+
+  let best = null;
+  for (let i = 0; i < worldPoints.length; i++) {
+    const a = worldPoints[i];
+    const b = worldPoints[(i + 1) % worldPoints.length];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    if (Math.hypot(dx, dy) < 1e-6) continue;
+
+    const yaw = Math.atan2(dy, dx);
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (const pt of worldPoints) {
+      const relX = pt[0] - cx;
+      const relY = pt[1] - cy;
+      const rx = relX * cos + relY * sin;
+      const ry = -relX * sin + relY * cos;
+      minX = Math.min(minX, rx);
+      maxX = Math.max(maxX, rx);
+      minY = Math.min(minY, ry);
+      maxY = Math.max(maxY, ry);
+    }
+
+    const width = maxX - minX;
+    const length = maxY - minY;
+    const area = width * length;
+    if (!best || area < best.area) {
+      best = { yaw, width, length, area };
+    }
+  }
+
+  if (best) return { cx, cy, ...best };
+
+  return { cx, cy, yaw: 0, width: 4, length: 4, area: 16 };
+}
+
+function buildWaterBlockObjects(terrainData, squareSize) {
+  const features = terrainData.osmFeatures?.filter((feature) => {
+    if (feature.type !== 'water') return false;
+    if (!Array.isArray(feature.geometry) || feature.geometry.length < 4) return false;
+    if (!isClosedRing(feature.geometry)) return false;
+    if (feature.tags?.waterway) return false;
+    return !isExcludedWaterFeature(feature.tags);
+  }) ?? [];
+
+  return features.map((feature, index) => {
+    const ring = feature.geometry.slice(0, -1);
+    const worldPoints = ring.map((pt) => geoToWorldPoint(pt.lat, pt.lng, terrainData, squareSize, 0));
+    const fit = computeBestFitWaterBlock(worldPoints);
+    const rawWidth = Math.max(4, fit.width);
+    const rawLength = Math.max(4, fit.length);
+    const pad = clamp(Math.min(rawWidth, rawLength) * 0.092, 1.5, 6.9);
+    const width = rawWidth + (pad * 2);
+    const length = rawLength + (pad * 2);
+    const height = Math.max(1.5, Math.min(width, length) * 0.08);
+    const ringHeights = ring.map((pt) => getTerrainHeightWorld(pt.lat, pt.lng, terrainData));
+    ringHeights.sort((a, b) => a - b);
+    const surfaceElevation = percentileValue(ringHeights, 0.8) + 0.14;
+
+    return {
+      ...structuredClone(WATER_BLOCK_TEMPLATE),
+      name: `water_body_${index}`,
+      persistentId: generatePersistentId(),
+      __parent: 'Water',
+      position: [roundTo(fit.cx, 3), roundTo(fit.cy, 3), roundTo(surfaceElevation, 3)],
+      rotationMatrix: rotationMatrixFromYaw(fit.yaw),
+      scale: [roundTo(width, 3), roundTo(length, 3), roundTo(height, 3)],
+    };
+  });
+}
+
+function smoothHeights(heights) {
+  if (heights.length < 3) return heights;
+  const out = heights.slice();
+  for (let i = 1; i < heights.length - 1; i++) {
+    out[i] = (heights[i - 1] + heights[i] + heights[i + 1]) / 3;
+  }
+  return out;
+}
+
+function parseNumericWidth(value, fallback) {
+  if (value == null) return fallback;
+  const match = String(value).match(/[\d.]+/);
+  const parsed = match ? parseFloat(match[0]) : NaN;
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function buildRiverObjects(terrainData, squareSize) {
+  const features = terrainData.osmFeatures?.filter((feature) => {
+    if (feature.type !== 'water') return false;
+    if (!Array.isArray(feature.geometry) || feature.geometry.length < 2) return false;
+    if (isClosedRing(feature.geometry)) return false;
+    if (!feature.tags?.waterway) return false;
+    return !isExcludedWaterFeature(feature.tags);
+  }) ?? [];
+
+  return features.map((feature, index) => {
+    const geom = simplifyPolyline(feature.geometry, 72);
+    const fallbackWidth = WATERWAY_WIDTHS[feature.tags.waterway] ?? 10;
+    const width = Math.max(3, parseNumericWidth(feature.tags.width, fallbackWidth));
+    const depth = Math.max(1.5, WATERWAY_DEPTHS[feature.tags.waterway] ?? Math.max(2, width * 0.25));
+    const worldPts = geom.map((pt) => geoToWorldPoint(pt.lat, pt.lng, terrainData, squareSize, 0));
+    const heights = smoothHeights(worldPts.map((pt) => pt[2] + 0.05));
+    const nodes = worldPts.map((pt, ptIndex) => ([
+      roundTo(pt[0], 3),
+      roundTo(pt[1], 3),
+      roundTo(heights[ptIndex], 3),
+      roundTo(width, 3),
+      roundTo(depth, 3),
+      0,
+      0,
+      1,
+    ]));
+    return {
+      ...structuredClone(RIVER_TEMPLATE),
+      name: `waterway_${index}`,
+      persistentId: generatePersistentId(),
+      __parent: 'Water',
+      position: nodes.length > 0 ? nodes[0].slice(0, 3) : [0, 0, 0],
+      nodes,
+    };
+  }).filter((river) => river.nodes.length >= 2);
+}
+
+function cloneManagedItemData(itemNames) {
+  const out = {};
+  for (const itemName of itemNames) {
+    const template = ITALY_FOREST_ITEM_TEMPLATES[itemName];
+    if (!template) continue;
+    out[itemName] = {
+      ...structuredClone(template),
+      persistentId: generatePersistentId(),
+    };
+  }
+  return out;
+}
+
+function chooseTreeType(tags = {}) {
+  const species = `${tags.species || ''} ${tags['species:en'] || ''}`.toLowerCase();
+  if (species.includes('olive')) return 'olive_tree';
+  if (species.includes('cypress')) return 'cypress_tree';
+  if (species.includes('palm') || tags.leaf_type === 'palm') return 'italy_palm_1';
+  if (tags.leaf_type === 'needleleaved' || tags.wood === 'coniferous') return 'maritime_pine_tree';
+  return 'holm_oak_city_small';
+}
+
+function makeForestPlacement(type, point, terrainData, squareSize, seed, scaleMin, scaleMax) {
+  const [x, y, z] = geoToWorldPoint(point.lat, point.lng, terrainData, squareSize, 0);
+  const yaw = seededRandom(seed + 17) * Math.PI * 2;
+  const scale = scaleMin + (scaleMax - scaleMin) * seededRandom(seed + 29);
+  return {
+    ctxid: 0,
+    pos: [roundTo(x, 3), roundTo(y, 3), roundTo(z, 3)],
+    rotationMatrix: rotationMatrixFromYaw(yaw),
+    scale: roundTo(scale, 6),
+    type,
+  };
+}
+
+function sampleAreaPlacements(feature, terrainData, squareSize, itemType, densityPerSqM, maxCount, scaleMin, scaleMax, baseSeed) {
+  if (!Array.isArray(feature.geometry) || feature.geometry.length < 4) return [];
+  const ring = isClosedRing(feature.geometry) ? feature.geometry.slice(0, -1) : feature.geometry;
+  if (ring.length < 3) return [];
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  for (const pt of ring) {
+    minLat = Math.min(minLat, pt.lat);
+    maxLat = Math.max(maxLat, pt.lat);
+    minLng = Math.min(minLng, pt.lng);
+    maxLng = Math.max(maxLng, pt.lng);
+  }
+  const centerLat = (minLat + maxLat) * 0.5;
+  const metersPerDegLng = 111320 * Math.cos((centerLat * Math.PI) / 180);
+  const widthM = Math.max(1, (maxLng - minLng) * metersPerDegLng);
+  const heightM = Math.max(1, (maxLat - minLat) * 111320);
+  const count = Math.min(maxCount, Math.max(0, Math.floor(widthM * heightM * densityPerSqM)));
+  const placements = [];
+  for (let i = 0; i < count; i++) {
+    const seed = baseSeed + i * 13.37;
+    const lat = minLat + (maxLat - minLat) * seededRandom(seed + 1);
+    const lng = minLng + (maxLng - minLng) * seededRandom(seed + 2);
+    const pt = { lat, lng };
+    if (!pointInPolygonLatLng(pt, ring)) continue;
+    let inHole = false;
+    for (const hole of feature.holes || []) {
+      if (pointInPolygonLatLng(pt, hole)) {
+        inHole = true;
+        break;
+      }
+    }
+    if (inHole) continue;
+    placements.push(makeForestPlacement(itemType, pt, terrainData, squareSize, seed, scaleMin, scaleMax));
+  }
+  return placements;
+}
+
+function buildForestPlacements(terrainData, squareSize, { includeTrees, includeRocks }) {
+  const placementsByType = new Map();
+  const pushPlacement = (placement) => {
+    if (!placementsByType.has(placement.type)) placementsByType.set(placement.type, []);
+    placementsByType.get(placement.type).push(placement);
+  };
+
+  if (includeTrees) {
+    for (const feature of terrainData.osmFeatures || []) {
+      if (feature.type === 'vegetation' && feature.geometry?.length === 1) {
+        const seed = hashString(`${feature.id}:${feature.geometry[0].lat}:${feature.geometry[0].lng}`);
+        const point = feature.geometry[0];
+        const itemType = chooseTreeType(feature.tags || {});
+        const isBush = feature.tags?.natural === 'shrub';
+        pushPlacement(makeForestPlacement(
+          isBush ? 'generibush' : itemType,
+          point,
+          terrainData,
+          squareSize,
+          seed,
+          isBush ? 0.7 : 0.85,
+          isBush ? 1.2 : 1.2,
+        ));
+      }
+      if (feature.type === 'landuse') {
+        const tags = feature.tags || {};
+        const isBushArea =
+          tags.natural === 'scrub' ||
+          tags.natural === 'heath' ||
+          tags.natural === 'shrubbery' ||
+          tags.landcover === 'scrub';
+        if (isBushArea) {
+          const itemType = tags.barrier === 'hedge' ? 'holm_oak_bush_huge' : 'generibush';
+          const placements = sampleAreaPlacements(
+            feature,
+            terrainData,
+            squareSize,
+            itemType,
+            0.004,
+            400,
+            0.75,
+            1.2,
+            hashString(feature.id),
+          );
+          placements.forEach(pushPlacement);
+        }
+      }
+    }
+  }
+
+  if (includeRocks) {
+    const rockTypes = [
+      'italy_rockface_boulder_1',
+      'italy_rockface_boulder_2',
+      'italy_rockface_boulder_3',
+      'italy_rockface_boulder_4',
+    ];
+    for (const feature of terrainData.osmFeatures || []) {
+      if (feature.type !== 'landuse') continue;
+      const tags = feature.tags || {};
+      const isRockArea =
+        tags.landuse === 'quarry' ||
+        tags.natural === 'bare_rock' ||
+        tags.natural === 'rock' ||
+        tags.natural === 'scree' ||
+        tags.natural === 'shingle';
+      if (!isRockArea) continue;
+      const placements = sampleAreaPlacements(
+        feature,
+        terrainData,
+        squareSize,
+        rockTypes[hashString(feature.id) % rockTypes.length],
+        0.0008,
+        140,
+        0.8,
+        1.25,
+        hashString(`${feature.id}:rocks`),
+      );
+      placements.forEach((placement, idx) => {
+        placement.type = rockTypes[(hashString(`${feature.id}:${idx}`) % rockTypes.length)];
+        pushPlacement(placement);
+      });
+    }
+  }
+
+  return placementsByType;
+}
+
+function serializeForestFiles(placementsByType) {
+  const files = [];
+  for (const [type, placements] of placementsByType.entries()) {
+    if (!placements.length) continue;
+    files.push({
+      path: `forest/${type}.forest4.json`,
+      contents: toNDJSON(placements),
+    });
+  }
+  return files;
+}
+
+function buildGroundCoverObjects(terrainData, squareSize, includeTrees) {
+  if (!includeTrees) return [];
+  const widthMeters = terrainData.width * squareSize;
+  const heightMeters = terrainData.height * squareSize;
+  const radius = Math.max(30, roundTo(Math.min(widthMeters, heightMeters) * 0.48, 3));
+  const centerHeight = getTerrainHeightWorld(
+    (terrainData.bounds.north + terrainData.bounds.south) * 0.5,
+    (terrainData.bounds.east + terrainData.bounds.west) * 0.5,
+    terrainData,
+  );
+
+  return [{
+    __parent: 'vegetation',
+    class: 'GroundCover',
+    name: 'mapng_grass_cover',
+    persistentId: generatePersistentId(),
+    position: [0, 0, roundTo(centerHeight, 3)],
+    material: 'GrassMiddle',
+    gridSize: 3,
+    radius,
+    dissolveRadius: Math.max(40, roundTo(radius * 0.6, 3)),
+    shapeCullRadius: radius,
+    maxBillboardTiltAngle: 40,
+    maxElements: Math.max(220000, Math.round((widthMeters * heightMeters) / 4)),
+    windGustLength: 1.7,
+    windGustStrength: 0.2,
+    windTurbulenceFrequency: 0.3,
+    seed: 11,
+    Types: [
+      {
+        billboardUVs: [0.496093988, 0, 0.503906012, 0.47656101],
+        clumpRadius: 1.5,
+        layer: 'Grass',
+        maxClumpCount: 10,
+        minClumpCount: 4,
+        probability: 1,
+        sizeMax: 0.7,
+        sizeMin: 0.42,
+        windScale: 0.2,
+      },
+      {
+        billboardUVs: [0, 0, 0.507812023, 0.488281012],
+        layer: 'Grass',
+        maxClumpCount: 8,
+        minClumpCount: 3,
+        probability: 0.7,
+        sizeMax: 0.65,
+        sizeMin: 0.38,
+        windScale: 0.2,
+      },
+      {
+        billboardUVs: [0, 0.50781101, 0.5, 0.49218899],
+        layer: 'Grass',
+        maxClumpCount: 7,
+        minClumpCount: 3,
+        probability: 0.55,
+        sizeMax: 0.58,
+        sizeMin: 0.34,
+        windScale: 0.2,
+      },
+      {
+        billboardUVs: [0.5, 0.503906012, 0.5, 0.496093988],
+        clumpRadius: 0.35,
+        layer: 'Grass',
+        maxClumpCount: 8,
+        minClumpCount: 3,
+        probability: 0.45,
+        sizeMax: 0.52,
+        sizeMin: 0.32,
+        windScale: 0.2,
+      },
+      {}, {}, {}, {},
+    ],
+  }];
+}
+
 /**
  * Generate a complete BeamNG level .zip from terrainData and center coordinates.
  *
@@ -763,7 +1908,7 @@ function toNDJSON(objects) {
  *       │   ├── terrain.png
  *       │   └── main.materials.json        (TerrainMaterial + TerrainMaterialTextureSet)
  *       ├── art/shapes/                    (present when OSM features or backdrop exist)
- *       │   ├── osm_objects.dae            (buildings, trees, barriers — optional)
+ *       │   ├── osm_objects.dae            (buildings, barriers, street furniture — optional)
  *       │   ├── terrain_backdrop.dae       (surrounding terrain mesh — optional)
  *       │   └── main.materials.json        (Materials for all DAEs in this folder)
  *       └── main/
@@ -781,12 +1926,22 @@ function toNDJSON(objects) {
  * @param {object} [options]
  * @param {string}  [options.baseTexture='hybrid']         — 'hybrid' | 'satellite' | 'osm' | 'segmented' | 'segmentedHybrid'
  * @param {boolean} [options.includeBackdrop=false]         — fetch and include surrounding terrain backdrop DAE
+ * @param {boolean} [options.includeWater=true]             — emit native BeamNG inland water objects
+ * @param {boolean} [options.includeTrees=true]             — emit native BeamNG tree and bush forest instances
+ * @param {boolean} [options.includeRocks=false]            — emit native BeamNG rock forest instances
  * @param {'osm'|'image'|'none'} [options.pbrSource='osm'] — layer map source: 'osm' uses OSM polygon data,
  *   'image' infers materials from the segmented hybrid satellite image, 'none' disables PBR materials.
  *   Legacy boolean option `generatePbrMaterials` is still accepted for backward compatibility.
  */
 export async function exportBeamNGLevel(terrainData, center, options = {}) {
-  const { baseTexture = 'hybrid', includeBackdrop = false, onProgress } = options;
+  const {
+    baseTexture = 'hybrid',
+    includeBackdrop = false,
+    includeWater = true,
+    includeTrees = true,
+    includeRocks = false,
+    onProgress,
+  } = options;
   // Backward compat: generatePbrMaterials (bool) → pbrSource (string)
   let pbrSource = options.pbrSource;
   if (pbrSource === undefined) {
@@ -885,17 +2040,35 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   await yield_();
   let osmDaeBlob = await generateOSMObjectsDAE(exportTerrainData, worldSize);
 
+  report('Building water objects…', 71);
+  await yield_();
+  const waterObjects = includeWater
+    ? [
+        ...buildWaterBlockObjects(exportTerrainData, squareSize),
+        ...buildRiverObjects(exportTerrainData, squareSize),
+      ]
+    : [];
+
+  report('Building vegetation objects…', 77);
+  await yield_();
+  const forestPlacements = (includeTrees || includeRocks)
+    ? buildForestPlacements(exportTerrainData, squareSize, { includeTrees, includeRocks })
+    : new Map();
+  const forestFiles = serializeForestFiles(forestPlacements);
+  const groundCoverObjects = buildGroundCoverObjects(exportTerrainData, squareSize, includeTrees);
+  const managedForestItemData = cloneManagedItemData(Array.from(forestPlacements.keys()));
+
   let backdropDaeBlob = null;
   let backdropTextureFiles = [];
   if (includeBackdrop) {
-    report('Fetching terrain backdrop…', 75);
+    report('Fetching terrain backdrop…', 82);
     await yield_();
     const backdropResult = await generateTerrainBackdropDAE(exportTerrainData, worldSize);
     backdropDaeBlob = backdropResult?.daeBlob ?? null;
     backdropTextureFiles = backdropResult?.textureFiles ?? [];
   }
 
-  report('Assembling ZIP archive…', 85);
+  report('Assembling ZIP archive…', 88);
   await yield_();
 
   const zip = new JSZip();
@@ -911,6 +2084,12 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   zip.folder(`${base}/main/MissionGroup/Level_objects`);
   zip.folder(`${base}/main/MissionGroup/Level_objects/Other`);
   zip.folder(`${base}/main/MissionGroup/PlayerDropPoints`);
+  if (waterObjects.length > 0) zip.folder(`${base}/main/MissionGroup/Level_objects/Water`);
+  if (forestFiles.length > 0 || groundCoverObjects.length > 0) {
+    zip.folder(`${base}/main/MissionGroup/Level_objects/vegetation`);
+    zip.folder(`${base}/art/forest`);
+    zip.folder(`${base}/forest`);
+  }
 
   // ── info.json ──────────────────────────────────────────────────────────────
   zip.file(`${base}/info.json`, JSON.stringify({
@@ -963,14 +2142,17 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
 
   // ── art/shapes/ (OSM 3D objects and/or terrain backdrop) ──────────────────
   // Only written when at least one DAE file is present.
-  if (osmDaeBlob || backdropDaeBlob) {
+  if (osmDaeBlob || backdropDaeBlob || forestFiles.length > 0 || groundCoverObjects.length > 0) {
     zip.folder(`${base}/art/shapes`);
 
     if (osmDaeBlob) zip.file(`${base}/art/shapes/osm_objects.dae`, osmDaeBlob);
     if (backdropDaeBlob) zip.file(`${base}/art/shapes/terrain_backdrop.dae`, backdropDaeBlob);
 
     // Build a single materials JSON covering all DAEs in this directory.
-    const shapeMaterials = {};
+    const shapeMaterials = {
+      ...(forestFiles.length > 0 ? structuredClone(ITALY_FOREST_MATERIAL_DEFS) : {}),
+      ...(groundCoverObjects.length > 0 ? structuredClone(ITALY_GROUNDCOVER_MATERIAL_DEFS) : {}),
+    };
     if (osmDaeBlob) {
       // Vertex-colour Material: BeamNG multiplies diffuseColor × vertex colour.
       // All OSM mesh materials are named "osm_object" to resolve to this entry.
@@ -1094,6 +2276,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
         fogAtmosphereHeight: 1000,
         fogDensity: 0.0001,
         fogDensityOffset: 0,
+        globalEnviromentMap: 'cubemap_italy_reflection',
         gravity: -9.81,
         nearClip: 0.1,
         visibleDistance: 4000,
@@ -1125,6 +2308,18 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
         name: 'Other',
         persistentId: generatePersistentId(),
       },
+      ...(waterObjects.length > 0 ? [{
+        __parent: 'Level_objects',
+        class: 'SimGroup',
+        name: 'Water',
+        persistentId: generatePersistentId(),
+      }] : []),
+      ...((forestFiles.length > 0 || groundCoverObjects.length > 0) ? [{
+        __parent: 'Level_objects',
+        class: 'SimGroup',
+        name: 'vegetation',
+        persistentId: generatePersistentId(),
+      }] : []),
     ])
   );
 
@@ -1182,6 +2377,33 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     toNDJSON(otherItems)
   );
 
+  if (waterObjects.length > 0) {
+    zip.file(`${base}/main/MissionGroup/Level_objects/Water/items.level.json`,
+      toNDJSON(waterObjects)
+    );
+  }
+
+  if (forestFiles.length > 0 || groundCoverObjects.length > 0) {
+    zip.file(`${base}/main/MissionGroup/Level_objects/vegetation/items.level.json`,
+      toNDJSON([
+        ...(forestFiles.length > 0 ? [{
+          __parent: 'vegetation',
+          class: 'Forest',
+          name: 'theForest',
+          persistentId: generatePersistentId(),
+          lodReflectScalar: 0,
+        }] : []),
+        ...groundCoverObjects,
+      ])
+    );
+    if (forestFiles.length > 0) {
+      zip.file(`${base}/art/forest/managedItemData.json`, JSON.stringify(managedForestItemData, null, 2));
+      for (const forestFile of forestFiles) {
+        zip.file(`${base}/${forestFile.path}`, forestFile.contents);
+      }
+    }
+  }
+
   // ── main/MissionGroup/PlayerDropPoints/items.level.json ───────────────────
   // Spawn position: midpoint of nearest road to terrain center (or center
   // fallback), 3 m above the terrain surface at that point.
@@ -1200,7 +2422,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     }])
   );
 
-  report('Compressing ZIP…', 93);
+  report('Compressing ZIP…', 94);
   await yield_();
   const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   report('Done', 100);
