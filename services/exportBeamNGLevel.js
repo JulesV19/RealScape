@@ -1432,6 +1432,43 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+async function loadMapngFlagAsset() {
+  const response = await fetch('/mapng_flag_static.zip');
+  if (!response.ok) throw new Error(`Failed to load mapng flag asset: ${response.status}`);
+  const archive = await JSZip.loadAsync(await response.arrayBuffer());
+  const files = [];
+  for (const entry of Object.values(archive.files)) {
+    if (entry.dir) continue;
+    files.push({
+      path: entry.name,
+      data: await entry.async('uint8array'),
+    });
+  }
+  return files;
+}
+
+function findHighestTerrainPoint(terrainData, squareSize) {
+  const { width, height, heightMap, minHeight } = terrainData;
+  let bestIndex = 0;
+  let bestHeight = -Infinity;
+  for (let i = 0; i < heightMap.length; i++) {
+    if (heightMap[i] > bestHeight) {
+      bestHeight = heightMap[i];
+      bestIndex = i;
+    }
+  }
+  const x = bestIndex % width;
+  const y = Math.floor(bestIndex / width);
+  const worldSize = width * squareSize;
+  const u = width > 1 ? x / (width - 1) : 0.5;
+  const v = height > 1 ? y / (height - 1) : 0.5;
+  return [
+    roundTo((u - 0.5) * worldSize, 3),
+    roundTo((0.5 - v) * worldSize, 3),
+    roundTo(bestHeight - minHeight + 0.25, 3),
+  ];
+}
+
 function isClosedRing(points) {
   if (!Array.isArray(points) || points.length < 4) return false;
   const a = points[0];
@@ -2114,6 +2151,16 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     backdropTextureFiles = backdropResult?.textureFiles ?? [];
   }
 
+  report('Loading map flag asset…', 85);
+  await yield_();
+  let mapngFlagFiles = [];
+  try {
+    mapngFlagFiles = await loadMapngFlagAsset();
+  } catch (error) {
+    console.warn('Failed to load MapNG flag asset, skipping:', error);
+  }
+  const mapngFlagPosition = findHighestTerrainPoint(exportTerrainData, squareSize);
+
   report('Assembling ZIP archive…', 88);
   await yield_();
 
@@ -2188,11 +2235,25 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
 
   // ── art/shapes/ (OSM 3D objects and/or terrain backdrop) ──────────────────
   // Only written when at least one DAE file is present.
-  if (osmDaeBlob || backdropDaeBlob || forestFiles.length > 0 || groundCoverObjects.length > 0) {
+  if (osmDaeBlob || backdropDaeBlob || forestFiles.length > 0 || groundCoverObjects.length > 0 || mapngFlagFiles.length > 0) {
     zip.folder(`${base}/art/shapes`);
+    if (mapngFlagFiles.length > 0) zip.folder(`${base}/art/shapes/mapng`);
 
     if (osmDaeBlob) zip.file(`${base}/art/shapes/osm_objects.dae`, osmDaeBlob);
     if (backdropDaeBlob) zip.file(`${base}/art/shapes/terrain_backdrop.dae`, backdropDaeBlob);
+    for (const asset of mapngFlagFiles) {
+      const relativePath = asset.path.startsWith('mapng/') ? asset.path.slice('mapng/'.length) : asset.path;
+      if (relativePath === 'main.materials.json') {
+        const materialDefs = JSON.parse(new TextDecoder().decode(asset.data));
+        if (materialDefs.mapng_flag?.Stages?.[0]) {
+          materialDefs.mapng_flag.class = 'Material';
+          materialDefs.mapng_flag.Stages[0].colorMap = `levels/${levelName}/art/shapes/mapng/mapng_flag_d.png`;
+        }
+        zip.file(`${base}/art/shapes/mapng/main.materials.json`, JSON.stringify(materialDefs, null, 2));
+      } else {
+        zip.file(`${base}/art/shapes/mapng/${relativePath}`, asset.data);
+      }
+    }
 
     // Build a single materials JSON covering all DAEs in this directory.
     const shapeMaterials = {
@@ -2416,6 +2477,18 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
       persistentId: generatePersistentId(),
       position: [0, 0, 0],
       shapeName: `levels/${levelName}/art/shapes/terrain_backdrop.dae`,
+      useInstanceRenderData: true,
+    });
+  }
+
+  if (mapngFlagFiles.length > 0) {
+    otherItems.push({
+      __parent: 'Other',
+      class: 'TSStatic',
+      name: 'mapng_flag_marker',
+      persistentId: generatePersistentId(),
+      position: mapngFlagPosition,
+      shapeName: `levels/${levelName}/art/shapes/mapng/flagng.dae`,
       useInstanceRenderData: true,
     });
   }
