@@ -1377,6 +1377,52 @@ const ITALY_GROUNDCOVER_MATERIAL_DEFS = {
   },
 };
 
+const ITALY_ROCK_MATERIAL_DEFS = {
+  italy_rocksface: {
+    name: 'italy_rocksface',
+    mapTo: 'italy_rocksface',
+    class: 'Material',
+    persistentId: 'b0060c1a-6687-4bf1-8e8f-860ab174aeac',
+    Stages: [{
+      ambientOcclusionMap: '/levels/italy/art/shapes/rocks/t_italy_rocksface_ao.data.png',
+      baseColorFactor: [0.933333397, 0.933333397, 0.933333397, 0.00800000038],
+      baseColorMap: '/levels/italy/art/shapes/rocks/t_italy_rocksface_b.color.png',
+      detailBaseColorMapStrength: 0.25,
+      detailMap: '/levels/italy/art/shapes/rocks/t_italy_rocksface_detail_b.data.png',
+      detailNormalMap: '/levels/italy/art/shapes/rocks/t_italy_rocksface_detail_nm.normal.png',
+      detailNormalMapStrength: 1.5,
+      detailScale: [22, 22],
+      normalMap: '/levels/italy/art/shapes/rocks/t_italy_rocksface_nm.normal.png',
+      roughnessMap: '/levels/italy/art/shapes/rocks/t_italy_rocksface_r.data.png',
+      vertColor: true,
+    }, {
+      baseColorFactor: null,
+      detailBaseColorMapStrength: null,
+      detailNormalMapStrength: null,
+      detailScale: null,
+      vertColor: null,
+    }, {
+      baseColorFactor: null,
+      detailBaseColorMapStrength: null,
+      detailNormalMapStrength: null,
+      detailScale: null,
+      vertColor: null,
+    }, {
+      baseColorFactor: null,
+      detailBaseColorMapStrength: null,
+      detailNormalMapStrength: null,
+      detailScale: null,
+      vertColor: null,
+    }],
+    annotation: 'ROCK',
+    groundType: 'ROCK',
+    materialTag0: 'beamng',
+    materialTag1: 'Natural',
+    translucentBlendOp: 'None',
+    version: 1.5,
+  },
+};
+
 function roundTo(value, places = 3) {
   const f = 10 ** places;
   return Math.round(value * f) / f;
@@ -1620,7 +1666,7 @@ function buildRiverObjects(terrainData, squareSize) {
     const width = Math.max(3, parseNumericWidth(feature.tags.width, fallbackWidth));
     const depth = Math.max(1.5, WATERWAY_DEPTHS[feature.tags.waterway] ?? Math.max(2, width * 0.25));
     const worldPts = geom.map((pt) => geoToWorldPoint(pt.lat, pt.lng, terrainData, squareSize, 0));
-    const heights = smoothHeights(worldPts.map((pt) => pt[2] + 0.05));
+    const heights = smoothHeights(worldPts.map((pt) => pt[2] + 0.9));
     const nodes = worldPts.map((pt, ptIndex) => ([
       roundTo(pt[0], 3),
       roundTo(pt[1], 3),
@@ -2152,6 +2198,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     const shapeMaterials = {
       ...(forestFiles.length > 0 ? structuredClone(ITALY_FOREST_MATERIAL_DEFS) : {}),
       ...(groundCoverObjects.length > 0 ? structuredClone(ITALY_GROUNDCOVER_MATERIAL_DEFS) : {}),
+      ...(forestFiles.length > 0 ? structuredClone(ITALY_ROCK_MATERIAL_DEFS) : {}),
     };
     if (osmDaeBlob) {
       // Vertex-colour Material: BeamNG multiplies diffuseColor × vertex colour.
