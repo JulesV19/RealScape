@@ -6,7 +6,7 @@
 
     <!-- Primary SEO -->
     <title>MapNG - Real-World Terrain Generator for BeamNG.drive</title>
-    <meta name="description" content="Create BeamNG.drive terrain from real-world locations. Generate 16-bit heightmaps, satellite and OSM textures, 3D models, BeamNG level packages, and offset-aware batch grids with optional shared elevation baselines." />
+    <meta name="description" content="Create BeamNG.drive terrain from real-world locations. Generate 16-bit heightmaps, satellite and OSM textures, GeoTIFF and GeoJSON data, 3D models, BeamNG .ter files, and experimental BeamNG level packages." />
     <meta name="keywords" content="BeamNG, BeamNG.drive, BeamNG map maker, BeamNG terrain generator, BeamNG heightmap, BeamNG modding, real-world terrain, heightmap generator, terrain generator, OSM texture, GeoTIFF, GeoJSON, GLB export, DAE export, BeamNG level" />
     <meta name="author" content="Nikki Luzader" />
     <meta name="robots" content="index, follow" />
@@ -16,7 +16,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://mapng.com/" />
     <meta property="og:title" content="MapNG - Real-World Terrain Generator for BeamNG.drive" />
-    <meta property="og:description" content="Turn any real-world location into a BeamNG.drive map. Generate 16-bit heightmaps, textures, 3D models, and batch outputs with drag-adjustable tile layouts." />
+    <meta property="og:description" content="Turn any real-world location into terrain data and BeamNG-ready exports including heightmaps, textures, 3D models, batch tile sets, and experimental level packages." />
     <meta property="og:image" content="https://mapng.com/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -25,7 +25,7 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="MapNG - Real-World Terrain Generator for BeamNG.drive" />
-    <meta name="twitter:description" content="Generate BeamNG terrain from real-world data: 16-bit heightmaps, textures, 3D exports, and advanced batch workflows." />
+    <meta name="twitter:description" content="Generate BeamNG terrain from real-world data: heightmaps, textures, GIS exports, 3D models, and experimental BeamNG level packages." />
     <meta name="twitter:image" content="https://mapng.com/og-image.png" />
 
     <!-- Favicon -->
@@ -40,7 +40,7 @@
       "name": "MapNG",
       "alternateName": "MapNG BeamNG Terrain Generator",
       "url": "https://mapng.com/",
-      "description": "A free, open-source web application that converts real-world geographic data into game-engine-ready terrain assets for BeamNG.drive modding. Generate heightmaps, textures, OSM overlays, 3D models, and batch tile sets from any location on Earth.",
+      "description": "A free, open-source web application that converts real-world geographic data into terrain, texture, GIS, 3D, and BeamNG-oriented exports from any location on Earth.",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web Browser (Desktop)",
       "offers": {
@@ -62,14 +62,14 @@
         "1 meter per pixel output resolution",
         "16-bit PNG heightmap export",
         "Satellite texture from Esri World Imagery",
-        "8K procedural OSM texture with lane-accurate roads",
+        "8K procedural OSM texture generation",
         "Hybrid satellite + road overlay texture",
         "Road mask export for drivable surfaces",
         "GeoTIFF export with proper CRS",
         "GeoJSON OSM vector data export",
         "GLB 3D model export with buildings and vegetation",
         "Collada DAE and BeamNG .ter exports",
-        "BeamNG level package ZIP export",
+        "Experimental BeamNG level package ZIP export",
         "Interactive 3D preview with HDR lighting and shadows",
         "Surrounding terrain tile downloads",
         "Batch mode with tile offsets and drag-adjustable tile centers",
@@ -108,7 +108,7 @@
           "name": "What file formats does MapNG export for BeamNG?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "MapNG exports multiple formats including 16-bit PNG heightmaps, satellite and OSM-based textures, road masks, GeoTIFF elevation data, GeoJSON vector data, GLB and DAE 3D models, BeamNG .ter heightmaps, and complete BeamNG level package ZIP files. Batch mode can process tile grids automatically and package per-tile outputs into ZIP files."
+            "text": "MapNG exports multiple formats including 16-bit PNG heightmaps, satellite and OSM-based textures, road masks, GeoTIFF elevation data, GeoJSON vector data, GLB and DAE 3D models, BeamNG .ter heightmaps, and experimental BeamNG level package ZIP files. Batch mode can process tile grids automatically and package per-tile outputs into ZIP files."
           }
         },
         {
@@ -134,11 +134,11 @@
           <li>Generate heightmaps from any location on Earth at 1 meter per pixel</li>
           <li>3 elevation sources: Standard 30m global, USGS 1m (USA), GPXZ premium</li>
           <li>High-resolution satellite textures from Esri World Imagery</li>
-          <li>Procedural OSM textures with lane-accurate road rendering</li>
+          <li>Procedural OSM textures with road overlays, land-use fills, and simple markings</li>
           <li>Hybrid satellite + road overlay textures</li>
           <li>Interactive 3D preview with HDR lighting and cascaded shadows</li>
           <li>3D buildings, trees, and barriers from OpenStreetMap data</li>
-          <li>Multiple export formats: 16-bit heightmaps, satellite and OSM textures, road masks, GeoTIFF, GeoJSON, GLB, DAE, BeamNG .ter, and BeamNG level ZIP packages</li>
+          <li>Multiple export formats: 16-bit heightmaps, satellite and OSM textures, road masks, GeoTIFF, GeoJSON, GLB, DAE, BeamNG .ter, and experimental BeamNG level ZIP packages</li>
           <li>Surrounding terrain tile downloads for multi-tile worlds</li>
           <li>Batch Job mode for processing tile grids (up to 20x20) with per-tile offsets, pause, resume, and retry</li>
           <li>Optional shared elevation baseline and stitched verification heightmap for seam validation</li>

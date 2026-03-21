@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-6">
-    <!-- Experimental Banner -->
+    <!-- Batch Stability Note -->
     <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 flex items-start gap-2">
       <AlertTriangle :size="14" class="text-amber-500 mt-0.5 shrink-0" />
       <p class="text-[10px] text-amber-700 dark:text-amber-400 leading-relaxed">
-        <span class="font-bold">Experimental.</span> Batch processing is a work in progress. Large grids or high-resolution tiles may encounter issues.
+        <span class="font-bold">Resource heavy.</span> Large grids or high-resolution tiles can still hit browser memory or download limits.
       </p>
     </div>
 

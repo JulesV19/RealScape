@@ -96,7 +96,7 @@
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">Nominatim Geocoding</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dual-endpoint search with type-categorized location icons</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dual-endpoint search plus reverse lookup for suggested BeamNG level names</div>
             </div>
           </div>
         </section>
@@ -106,7 +106,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">HTML5 Canvas API</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Procedural texture generation up to 8192×8192 with 40+ land-use colors</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Procedural texture generation up to 8192×8192 with OSM land-use, roads, and overlays</div>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">fast-png</div>
@@ -114,7 +114,7 @@
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">OSM Lane Renderer</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Lane markings, junction fills, crosswalks, Chaikin smoothing</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Procedural road overlays, junction fills, crosswalk hints, and smoothed curves</div>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">Web Workers</div>
@@ -148,11 +148,11 @@
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">JSZip</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Client-side ZIP packaging for batch jobs, surrounding-tile exports, and .mapng job files</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Client-side ZIP packaging for BeamNG levels, surrounding tiles, batch jobs, and .mapng sessions</div>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
               <div class="font-medium text-gray-900 dark:text-white">Blob URL Management</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Zero-copy binary data handling for high-res heightmaps and texture rehydration</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Binary handling for large textures, heightmaps, and packaged exports</div>
             </div>
           </div>
         </section>

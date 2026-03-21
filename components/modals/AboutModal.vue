@@ -18,7 +18,7 @@
       
       <div class="p-6 overflow-y-auto custom-scrollbar space-y-6 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
         <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-lg p-4 text-orange-900 dark:text-orange-100">
-          <p class="font-medium">MapNG is a specialized web application that converts real-world geographic data into game-engine-ready terrain assets for BeamNG.drive modding.</p>
+          <p class="font-medium">MapNG is a desktop-focused web app for turning real-world locations into terrain, textures, GIS data, 3D meshes, and BeamNG-oriented exports.</p>
         </div>
 
         <div class="space-y-4">
@@ -27,7 +27,7 @@
             What does it do?
           </h3>
           <p>
-            Select any location on Earth, configure your terrain settings, and MapNG will generate high-precision heightmaps, detailed textures, and full 3D models ready for game engine import - all at a consistent 1 meter per pixel scale. The app features an interactive 3D preview with HDR lighting, cascaded shadow maps, and procedurally generated 3D buildings, trees, and road networks rendered directly from OpenStreetMap data. For large-scale projects, Batch Job mode can process entire grids of tiles with per-tile offsets, drag editing, and shared baseline options.
+            Select a location, choose an elevation source, generate the terrain, and export the parts of the workflow you need. MapNG can produce 16-bit heightmaps, satellite and OSM-derived textures, GIS exports, 3D meshes, BeamNG `.ter` files, and an experimental BeamNG level package. It also includes a live 3D preview with optional OSM-driven buildings, vegetation, barriers, and surrounding terrain context.
           </p>
         </div>
 
@@ -44,7 +44,7 @@
             <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">3D Preview</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
               <li>HDR environment lighting &amp; CSM shadows</li>
-              <li>Satellite, OSM, Hybrid &amp; bare texture modes</li>
+              <li>Satellite, OSM, Hybrid, segmented &amp; clay modes</li>
               <li>3D buildings, trees, bushes &amp; barriers</li>
               <li>Surrounding terrain tiles (8 directions)</li>
               <li>Quality &amp; wireframe controls</li>
@@ -68,7 +68,7 @@
               <li>GLB 3D Model (+ optional surroundings)</li>
               <li>Collada DAE (+ optional surroundings)</li>
               <li>BeamNG Terrain (.ter)</li>
-              <li>BeamNG Level Package (.zip)</li>
+              <li>BeamNG Level Package (.zip, experimental)</li>
               <li>Job Data (.mapng) - Complete compressed session package</li>
             </ul>
           </div>
@@ -76,10 +76,9 @@
             <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">OSM Texture Features</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
               <li>40+ land-use color categories</li>
-              <li>Lane-accurate road rendering with markings</li>
-              <li>Junction fills with Bézier-curved corners</li>
-              <li>Crosswalk detection &amp; zebra stripes</li>
-              <li>Chaikin's algorithm for smooth curves</li>
+              <li>Procedural road overlays and surface-aware linework</li>
+              <li>Junction fills and smoothed road/path curves</li>
+              <li>Crosswalk detection where OSM data supports it</li>
               <li>Customizable OSM background color</li>
             </ul>
           </div>
@@ -102,13 +101,12 @@
         </div>
 
         <div class="space-y-2">
-          <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
-            <Grid3X3 :size="14" class="text-[#FF6600]" />
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
+              <Grid3X3 :size="14" class="text-[#FF6600]" />
             Batch Job Mode
-            <span class="text-[8px] uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold">Beta</span>
           </h4>
           <p class="text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-            Process large areas by defining a grid of tiles (up to 20×20). Each tile is generated sequentially with all selected exports packaged into individual ZIP files. Features include:
+            Process large areas by defining a grid of tiles (up to 20×20). Each tile is generated sequentially with the selected exports packaged into an individual ZIP. Features include:
           </p>
           <ul class="space-y-1 list-disc list-inside marker:text-[#FF6600] text-xs">
             <li>Configurable grid dimensions, resolution, and export selections</li>
@@ -122,6 +120,13 @@
             <li>GPXZ concurrent requests for paid plans (based on account limits)</li>
             <li>Per-tile coordinate-stamped filenames for easy organization</li>
           </ul>
+        </div>
+
+        <div class="space-y-2">
+          <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">BeamNG Level Export</h4>
+          <p class="text-xs bg-amber-50 dark:bg-amber-900/20 p-3 rounded border border-amber-200 dark:border-amber-900/30 text-amber-800 dark:text-amber-200">
+            The BeamNG level package export is still experimental. It can build a playable level ZIP with flavor-based official assets, inferred terrain materials, water, vegetation, and a suggested level name, but it still needs more validation and polish.
+          </p>
         </div>
 
         <div class="space-y-2">

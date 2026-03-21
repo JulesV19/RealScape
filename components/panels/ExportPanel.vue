@@ -247,7 +247,10 @@
           @click="showExportBeamNG = !showExportBeamNG"
           class="w-full flex items-center justify-between group"
         >
-          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">BeamNG Level</h4>
+          <div class="flex items-center gap-1.5">
+            <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">BeamNG Level</h4>
+            <span class="text-[8px] uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold">Experimental</span>
+          </div>
           <ChevronDown :size="12" :class="['text-gray-400 dark:text-gray-500 transition-transform duration-200', showExportBeamNG ? 'rotate-180' : '']" />
         </button>
         <div v-if="showExportBeamNG" class="space-y-1.5">
@@ -343,7 +346,7 @@
             </div>
             <div class="text-left">
               <div class="text-[11px] font-medium">BeamNG Level Package</div>
-              <div class="text-[10px] text-gray-500 dark:text-gray-400">Drop .zip into BeamNG mods folder to play</div>
+              <div class="text-[10px] text-gray-500 dark:text-gray-400">Experimental playable .zip export</div>
             </div>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>

@@ -17,7 +17,6 @@
     >
       <Grid3X3 :size="12" />
       Batch Job
-      <span class="text-[8px] uppercase tracking-wider opacity-75 bg-white/20 px-1 rounded">Beta</span>
     </BaseButton>
   </div>
 </template>
