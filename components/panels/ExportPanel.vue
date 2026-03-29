@@ -491,7 +491,20 @@ const isExportingOSM = ref(false);
 const isExportingBeamNGLevel = ref(false);
 const beamNGProgressStep = ref('');
 const beamNGProgressPct  = ref(0);
-const beamNGBaseTexture = ref('hybrid');
+const resolveBeamNGBaseTexture = (terrainData, preferred = 'osm') => {
+  const availableTextures = {
+    osm: !!terrainData?.osmTextureUrl,
+    hybrid: !!terrainData?.hybridTextureUrl || !!terrainData?.hybridTextureCanvas,
+    satellite: !!terrainData?.satelliteTextureUrl,
+    segmented: !!terrainData?.segmentedTextureUrl,
+    segmentedHybrid: !!terrainData?.segmentedHybridTextureUrl,
+  };
+
+  if (availableTextures[preferred]) return preferred;
+  return Object.keys(availableTextures).find((key) => availableTextures[key]) || preferred;
+};
+
+const beamNGBaseTexture = ref(resolveBeamNGBaseTexture(props.terrainData));
 const beamNGIncludeBackdrop = ref(false);
 const beamNGIncludeWater = ref(localStorage.getItem('mapng_beamNGIncludeWater') !== 'false');
 const beamNGIncludeTrees = ref(localStorage.getItem('mapng_beamNGIncludeTrees') !== 'false');
@@ -590,6 +603,14 @@ watch(
   () => [props.center.lat, props.center.lng],
   () => {
     updateSuggestedBeamNGLevelName();
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.terrainData,
+  (terrainData) => {
+    beamNGBaseTexture.value = resolveBeamNGBaseTexture(terrainData, beamNGBaseTexture.value);
   },
   { immediate: true }
 );
