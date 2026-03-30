@@ -862,8 +862,197 @@ function roundTo(value, places = 3) {
   return Math.round(value * f) / f;
 }
 
+function formatNumber(value, places = 3) {
+  if (!Number.isFinite(value)) return 'n/a';
+  return Number(value).toFixed(places);
+}
+
+function formatBool(value) {
+  return value ? 'Yes' : 'No';
+}
+
+function formatIsoTimestamp(value) {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return 'n/a';
+  return value.toISOString();
+}
+
+function formatDurationMs(value) {
+  if (!Number.isFinite(value)) return 'n/a';
+  if (value >= 1000) return `${(value / 1000).toFixed(2)} s`;
+  return `${Math.round(value)} ms`;
+}
+
+function metersToKm2(value) {
+  if (!Number.isFinite(value)) return 'n/a';
+  return (value / 1_000_000).toFixed(3);
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function summarizeOsmFeatures(features = []) {
+  const summary = {
+    total: 0,
+    roads: 0,
+    buildings: 0,
+    water: 0,
+    vegetation: 0,
+    landuse: 0,
+    points: 0,
+    lines: 0,
+    polygons: 0,
+  };
+
+  for (const feature of features) {
+    summary.total += 1;
+    if (feature?.type === 'road') summary.roads += 1;
+    if (feature?.type === 'building') summary.buildings += 1;
+    if (feature?.type === 'water') summary.water += 1;
+    if (feature?.type === 'vegetation') summary.vegetation += 1;
+    if (feature?.type === 'landuse') summary.landuse += 1;
+
+    const pointCount = Array.isArray(feature?.geometry) ? feature.geometry.length : 0;
+    if (pointCount <= 1) summary.points += 1;
+    else if (isClosedRing(feature.geometry)) summary.polygons += 1;
+    else summary.lines += 1;
+  }
+
+  return summary;
+}
+
+function resolveElevationSourceLabel(terrainData, selectedElevationSource) {
+  const explicit = typeof selectedElevationSource === 'string' ? selectedElevationSource.trim() : '';
+  const normalized = explicit.toLowerCase();
+  const sourceGeoTiffsSource = terrainData?.sourceGeoTiffs?.source;
+
+  if (normalized === 'usgs') {
+    return terrainData?.usgsFallback ? 'USGS requested, fell back to default/WGS84 source' : 'USGS';
+  }
+  if (normalized === 'gpxz') return 'GPXZ';
+  if (normalized === 'default') {
+    return sourceGeoTiffsSource ? `Default (${String(sourceGeoTiffsSource).toUpperCase()})` : 'Default/WGS84';
+  }
+  if (explicit) return explicit;
+  if (sourceGeoTiffsSource) return String(sourceGeoTiffsSource).toUpperCase();
+  return 'Default/WGS84';
+}
+
+function buildBeamNGExportReport({
+  terrainData,
+  originalTerrainData,
+  center,
+  options,
+  levelName,
+  levelDisplayName,
+  flavor,
+  squareSize,
+  satelliteTexSize,
+  worldSize,
+  exportStartedAt,
+  reportGeneratedAt,
+  processingLog,
+  effectivePbrSource,
+  waterObjects,
+  decalRoads,
+  forestPlacements,
+  forestFiles,
+  groundCoverObjects,
+  osmDaeBlob,
+  backdropDaeBlob,
+  backdropTextureFiles,
+  mapngFlagFiles,
+  didCropToSquare,
+}) {
+  const minHeight = Number(terrainData?.minHeight);
+  const maxHeight = Number(terrainData?.maxHeight);
+  const heightDiff = maxHeight - minHeight;
+  const totalAreaM2 = worldSize * worldSize;
+  const bounds = terrainData?.bounds ?? {};
+  const selectedResolution = Number(options?.requestedResolution);
+  const osmSummary = summarizeOsmFeatures(terrainData?.osmFeatures);
+  const originalOsmSummary = summarizeOsmFeatures(originalTerrainData?.osmFeatures);
+  const forestPlacementCount = Array.from(forestPlacements.values()).reduce((sum, placements) => sum + placements.length, 0);
+  const terrainMaterialCount = Array.isArray(options?.terrainMaterialNames) ? options.terrainMaterialNames.length : 0;
+  const startedMs = exportStartedAt instanceof Date ? exportStartedAt.getTime() : NaN;
+  const reportGeneratedMs = reportGeneratedAt instanceof Date ? reportGeneratedAt.getTime() : NaN;
+  const totalDurationMs = reportGeneratedMs - startedMs;
+  const reportLines = [
+    'MapNG BeamNG Level Export Report',
+    '================================',
+    '',
+    'Summary',
+    `- Level display name: ${levelDisplayName}`,
+    `- Level folder name: ${levelName}`,
+    `- Flavor: ${flavor?.label || flavor?.name || flavor?.id || 'n/a'}`,
+    `- Export started (UTC): ${formatIsoTimestamp(exportStartedAt)}`,
+    `- Report generated (UTC): ${formatIsoTimestamp(reportGeneratedAt)}`,
+    `- Processing time before ZIP compression: ${formatDurationMs(totalDurationMs)}`,
+    '',
+    'Terrain',
+    `- Requested resolution: ${Number.isFinite(selectedResolution) ? `${selectedResolution} px` : 'n/a'}`,
+    `- Exported terrain size: ${terrainData?.width ?? 'n/a'} x ${terrainData?.height ?? 'n/a'} px`,
+    `- Terrain texture size: ${satelliteTexSize} x ${satelliteTexSize} px`,
+    `- Height range min/max: ${formatNumber(minHeight, 2)} m / ${formatNumber(maxHeight, 2)} m`,
+    `- Height difference: ${formatNumber(heightDiff, 2)} m`,
+    `- Scale: ${formatNumber(squareSize, 3)} m/px`,
+    `- World size: ${formatNumber(worldSize, 2)} m x ${formatNumber(worldSize, 2)} m`,
+    `- Total area: ${formatNumber(totalAreaM2, 2)} m^2 (${metersToKm2(totalAreaM2)} km^2)`,
+    `- Center coordinates: ${formatNumber(center?.lat, 6)}, ${formatNumber(center?.lng, 6)}`,
+    `- Bounds north/south/east/west: ${formatNumber(bounds.north, 6)}, ${formatNumber(bounds.south, 6)}, ${formatNumber(bounds.east, 6)}, ${formatNumber(bounds.west, 6)}`,
+    `- Elevation source used: ${resolveElevationSourceLabel(originalTerrainData, options?.elevationSource)}`,
+    `- Source GeoTIFF source: ${originalTerrainData?.sourceGeoTiffs?.source ? String(originalTerrainData.sourceGeoTiffs.source).toUpperCase() : 'n/a'}`,
+    `- Cropped to square for BeamNG: ${formatBool(didCropToSquare)}`,
+    '',
+    'Selected Export Options',
+    `- Base texture: ${options?.baseTexture ?? 'n/a'}`,
+    `- Include backdrop: ${formatBool(options?.includeBackdrop)}`,
+    `- PBR materials: ${effectivePbrSource === 'none' ? 'No' : 'Yes'}`,
+    `- PBR source requested: ${options?.requestedPbrSource ?? 'n/a'}`,
+    `- PBR source used: ${effectivePbrSource}`,
+    `- Include water: ${formatBool(options?.includeWater)}`,
+    `- Include trees/bushes: ${formatBool(options?.includeTrees)}`,
+    `- Include rocks: ${formatBool(options?.includeRocks)}`,
+    '',
+    'Generated Content',
+    `- Terrain materials written: ${terrainMaterialCount}`,
+    `- Decal roads generated: ${decalRoads.length}`,
+    `- Water objects generated: ${waterObjects.length}`,
+    `- Forest placement groups: ${forestPlacements.size}`,
+    `- Forest placement files: ${forestFiles.length}`,
+    `- Forest placements total: ${forestPlacementCount}`,
+    `- Ground cover objects: ${groundCoverObjects.length}`,
+    `- OSM DAE written: ${formatBool(!!osmDaeBlob)}`,
+    `- Backdrop DAE written: ${formatBool(!!backdropDaeBlob)}`,
+    `- Backdrop textures written: ${backdropTextureFiles.length}`,
+    `- MapNG flag asset written: ${formatBool(mapngFlagFiles.length > 0)}`,
+    '',
+    'OSM Analysis',
+    `- Source OSM features before bounds filter: ${originalOsmSummary.total}`,
+    `- OSM features after export filter: ${osmSummary.total}`,
+    `- Roads: ${osmSummary.roads}`,
+    `- Buildings: ${osmSummary.buildings}`,
+    `- Water features: ${osmSummary.water}`,
+    `- Vegetation points/features: ${osmSummary.vegetation}`,
+    `- Landuse features: ${osmSummary.landuse}`,
+    `- Point/line/polygon split: ${osmSummary.points}/${osmSummary.lines}/${osmSummary.polygons}`,
+    '',
+    'Processing Timeline',
+  ];
+
+  for (const entry of processingLog) {
+    reportLines.push(`- ${entry.step}: ${formatDurationMs(entry.durationMs)} (${entry.pct}%)`);
+  }
+
+  if (originalTerrainData?.osmRequestInfo) {
+    reportLines.push('');
+    reportLines.push('OSM Request Metadata');
+    for (const [key, value] of Object.entries(originalTerrainData.osmRequestInfo)) {
+      reportLines.push(`- ${key}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`);
+    }
+  }
+
+  return reportLines.join('\n') + '\n';
 }
 
 async function loadMapngFlagAsset() {
@@ -1511,11 +1700,39 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   // Report progress and yield to the browser so UI updates and GC can run.
   const report = (step, pct) => onProgress?.({ step, pct });
   const yield_ = () => new Promise(r => setTimeout(r, 0));
+  const exportStartedAt = new Date();
+  const processingLog = [];
+  let currentStep = null;
+  let currentStepStartedAt = performance.now();
+  const beginStep = (step, pct) => {
+    const now = performance.now();
+    if (currentStep !== null) {
+      processingLog.push({
+        step: currentStep.step,
+        pct: currentStep.pct,
+        durationMs: now - currentStepStartedAt,
+      });
+    }
+    currentStep = { step, pct };
+    currentStepStartedAt = now;
+    report(step, pct);
+  };
+  const finishProcessingLog = () => {
+    if (currentStep !== null) {
+      processingLog.push({
+        step: currentStep.step,
+        pct: currentStep.pct,
+        durationMs: performance.now() - currentStepStartedAt,
+      });
+      currentStep = null;
+    }
+  };
 
   // BeamNG TerrainBlock is square. If source data is rectangular, center-crop
   // everything (heightmap, bounds, textures) so terrain, texture, and OSM
   // objects share the same footprint.
   let td = terrainData;
+  const didCropToSquare = td.width !== td.height;
   if (td.width !== td.height) {
     const cropSize = Math.min(td.width, td.height);
     td = await prepareCroppedTerrainData({ ...td, exportCropSize: cropSize });
@@ -1552,7 +1769,6 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   // alive simultaneously. Sequencing lets each blob be GC-eligible before the
   // next one is allocated, which is critical for 4096+ terrain grids.
 
-  report('Painting terrain materials…', 5);
   await yield_();
   // Determine the output resolution of the terrain texture.
   // All canvas types (hybrid, osm, segmented) are rendered at the same output resolution.
@@ -1571,6 +1787,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   const imageCanvas = exportTerrainData.segmentedHybridTextureCanvas ?? null;
   const effectivePbrSource = (pbrSource === 'image' && !imageCanvas) ? 'osm' : pbrSource;
 
+  beginStep('Painting terrain materials…', 5);
   const pbrResult = effectivePbrSource !== 'none'
     ? await buildTerrainMaterials(exportTerrainData, worldSize, levelName, flavor, satelliteTexSize, {
         pbrSource: effectivePbrSource,
@@ -1578,14 +1795,14 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
       })
     : null;
 
-  report('Exporting terrain binary (.ter)…', 20);
+  beginStep('Exporting terrain binary (.ter)…', 20);
   await yield_();
   const { blob: terBlob } = await exportTer(exportTerrainData, {
     layerMap: pbrResult?.layerMap ?? null,
     materialNames: pbrResult?.materialNames ?? null,
   });
 
-  report('Generating satellite texture…', 35);
+  beginStep('Generating satellite texture…', 35);
   await yield_();
   let texBlob = await getTerrainTextureBlob(exportTerrainData, baseTexture);
   // terrain.png must be exactly baseTexSize pixels — BeamNG's TerrainMaterialTextureSet
@@ -1594,19 +1811,19 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     texBlob = await resizePngBlob(texBlob, satelliteTexSize);
   }
 
-  report('Generating heightmap preview…', 50);
+  beginStep('Generating heightmap preview…', 50);
   await yield_();
   let heightmapBlob = await generateHeightmapPng(exportTerrainData);
 
-  report('Generating level preview image…', 58);
+  beginStep('Generating level preview image…', 58);
   await yield_();
   let previewBlob = await generatePreviewBlob(exportTerrainData);
 
-  report('Building 3D OSM objects…', 65);
+  beginStep('Building 3D OSM objects…', 65);
   await yield_();
   let osmDaeBlob = await generateOSMObjectsDAE(exportTerrainData, worldSize);
 
-  report('Building water objects…', 71);
+  beginStep('Building water objects…', 71);
   await yield_();
   const waterObjects = includeWater
     ? [
@@ -1615,7 +1832,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
       ]
     : [];
 
-  report('Building vegetation objects…', 77);
+  beginStep('Building vegetation objects…', 77);
   await yield_();
   const forestPlacements = (includeTrees || includeRocks)
     ? buildForestPlacements(exportTerrainData, squareSize, { includeTrees, includeRocks }, flavor)
@@ -1630,14 +1847,14 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   let backdropDaeBlob = null;
   let backdropTextureFiles = [];
   if (includeBackdrop) {
-    report('Fetching terrain backdrop…', 82);
+    beginStep('Fetching terrain backdrop…', 82);
     await yield_();
     const backdropResult = await generateTerrainBackdropDAE(exportTerrainData, worldSize);
     backdropDaeBlob = backdropResult?.daeBlob ?? null;
     backdropTextureFiles = backdropResult?.textureFiles ?? [];
   }
 
-  report('Loading map flag asset…', 85);
+  beginStep('Loading map flag asset…', 85);
   await yield_();
   let mapngFlagFiles = [];
   try {
@@ -1647,7 +1864,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   }
   const mapngFlagPosition = findHighestTerrainPoint(exportTerrainData, squareSize);
 
-  report('Assembling ZIP archive…', 88);
+  beginStep('Assembling ZIP archive…', 88);
   await yield_();
 
   const zip = new JSZip();
@@ -1709,6 +1926,54 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   // ── preview.png ────────────────────────────────────────────────────────────
   zip.file(`${base}/preview.png`, previewBlob);
   previewBlob = null;
+
+  const reportGeneratedAt = new Date();
+  const processingLogSnapshot = currentStep !== null
+    ? [
+        ...processingLog,
+        {
+          step: currentStep.step,
+          pct: currentStep.pct,
+          durationMs: performance.now() - currentStepStartedAt,
+        },
+      ]
+    : processingLog.slice();
+  const reportContents = buildBeamNGExportReport({
+    terrainData: exportTerrainData,
+    originalTerrainData: terrainData,
+    center,
+    options: {
+      ...options,
+      baseTexture,
+      includeBackdrop,
+      includeWater,
+      includeTrees,
+      includeRocks,
+      requestedPbrSource: pbrSource,
+      terrainMaterialNames: pbrResult?.materialNames ?? ['DefaultMaterial'],
+    },
+    levelName,
+    levelDisplayName,
+    flavor,
+    squareSize,
+    satelliteTexSize,
+    worldSize,
+    exportStartedAt,
+    reportGeneratedAt,
+    processingLog: processingLogSnapshot,
+    effectivePbrSource,
+    waterObjects,
+    decalRoads,
+    forestPlacements,
+    forestFiles,
+    groundCoverObjects,
+    osmDaeBlob,
+    backdropDaeBlob,
+    backdropTextureFiles,
+    mapngFlagFiles,
+    didCropToSquare,
+  });
+  zip.file(`${base}/export_report.txt`, reportContents);
 
   // ── theTerrain.ter ─────────────────────────────────────────────────────────
   zip.file(`${base}/theTerrain.ter`, terBlob);
@@ -2029,9 +2294,10 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     }])
   );
 
-  report('Compressing ZIP…', 94);
+  beginStep('Compressing ZIP…', 94);
   await yield_();
   const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-  report('Done', 100);
+  beginStep('Done', 100);
+  finishProcessingLog();
   return { blob: zipBlob, filename: `${levelName}.zip` };
 }

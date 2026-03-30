@@ -1074,6 +1074,8 @@ const handleBeamNGLevelExport = async () => {
       includeRocks: beamNGIncludeRocks.value,
       flavorId: beamNGFlavorId.value,
       levelName: beamNGLevelName.value.trim(),
+      elevationSource: props.elevationSource,
+      requestedResolution: props.resolution,
       onProgress: ({ step, pct }) => {
         beamNGProgressStep.value = step;
         beamNGProgressPct.value  = pct;
