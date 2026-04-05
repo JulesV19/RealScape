@@ -107,7 +107,7 @@
             <template #fallback>
               <div class="w-full h-full flex items-center justify-center text-white flex-col gap-4">
                 <Loader2 class="animate-spin text-[#FF6600]" :size="48" />
-                <div class="text-lg font-medium text-white">Loading 3D Scene...</div>
+                <div class="text-lg font-medium text-white">{{ t('app.loadingScene') }}</div>
               </div>
             </template>
           </Suspense>
@@ -117,17 +117,17 @@
         <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm">
           <div class="text-center p-8 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl min-w-[300px]">
             <Loader2 :size="48" class="text-[#FF6600] animate-spin mx-auto mb-4" />
-            <h3 class="text-xl text-gray-900 dark:text-white font-bold mb-2">Processing Terrain</h3>
+            <h3 class="text-xl text-gray-900 dark:text-white font-bold mb-2">{{ t('app.processingTerrain') }}</h3>
             <p class="text-gray-600 dark:text-gray-400 text-sm font-medium mb-4 animate-pulse">{{ loadingStatus }}</p>
             <div class="text-xs text-gray-400 dark:text-gray-500 max-w-xs mx-auto">
-                <span v-if="resolution >= 2048">High resolution (2048+) may take 1-2 minutes.</span>
-                <span v-if="resolution >= 4096" class="block text-amber-500 mt-1">Very large area (4k/8k). Please wait...</span>
+                <span v-if="resolution >= 2048">{{ t('app.highResolutionWait') }}</span>
+                <span v-if="resolution >= 4096" class="block text-amber-500 mt-1">{{ t('app.veryLargeAreaWait') }}</span>
             </div>
             <button
               @click="cancelGeneration"
               class="mt-5 px-6 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
             >
-              Cancel
+              {{ t('common.cancel') }}
             </button>
           </div>
         </div>
@@ -159,6 +159,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 import { useMainStore } from './stores/mainStore';
 import { Loader2 } from 'lucide-vue-next';
 import MobileRestrictionOverlay from './components/modals/MobileRestrictionOverlay.vue';
@@ -192,6 +193,7 @@ if (import.meta.env.DEV) {
 }
 
 const store = useMainStore();
+const { t } = useI18n({ useScope: 'global' });
 const {
   center,
   zoom,
@@ -389,7 +391,7 @@ const handleGenerate = async (showPreview, fetchOSM, useUSGS, useGPXZ, gpxzApiKe
     if (onlyOsmAdded) {
       // Terrain + textures are identical, just add OSM data on top
       isLoading.value = true;
-      loadingStatus.value = "Adding OSM data to existing terrain...";
+      loadingStatus.value = t('app.status.addingOsm');
       try {
         const updatedData = await addOSMToTerrain(terrainData.value, undefined, (status) => {
           loadingStatus.value = status;
@@ -397,12 +399,12 @@ const handleGenerate = async (showPreview, fetchOSM, useUSGS, useGPXZ, gpxzApiKe
         terrainData.value = updatedData;
         lastGenerationKey.value = requestKey;
         if (showPreview) {
-          loadingStatus.value = "Rendering 3D scene...";
+          loadingStatus.value = t('app.status.rendering3d');
           previewMode.value = true;
         }
       } catch (error) {
         console.error("Failed to add OSM data:", error);
-        alert("Failed to fetch OSM data.");
+        alert(t('app.error.fetchOsm'));
       } finally {
         isLoading.value = false;
       }
@@ -420,7 +422,7 @@ const handleGenerate = async (showPreview, fetchOSM, useUSGS, useGPXZ, gpxzApiKe
   const { signal } = abortController;
 
   isLoading.value = true;
-  loadingStatus.value = "Starting terrain generation...";
+  loadingStatus.value = t('app.status.startingGeneration');
   
   // Flush old data to free memory before loading new large datasets
   if (terrainData.value) {
@@ -477,17 +479,17 @@ const handleGenerate = async (showPreview, fetchOSM, useUSGS, useGPXZ, gpxzApiKe
     lastGenerationKey.value = requestKey;
     
     if (showPreview) {
-        loadingStatus.value = "Rendering 3D scene...";
+        loadingStatus.value = t('app.status.rendering3d');
         previewMode.value = true;
     }
   } catch (error) {
     if (error.name === 'AbortError') {
       console.log("Terrain generation cancelled.");
-      loadingStatus.value = "Cancelled.";
+      loadingStatus.value = t('app.status.cancelled');
       return;
     }
     console.error("Failed to generate terrain:", error);
-    alert("Failed to fetch terrain data. The requested area might be too large or service is down.");
+    alert(t('app.error.fetchTerrain'));
   } finally {
     isLoading.value = false;
     abortController = null;
@@ -498,7 +500,7 @@ const handleFetchOSM = async () => {
   if (!terrainData.value) return;
   
   isLoading.value = true;
-  loadingStatus.value = "Fetching OSM data...";
+  loadingStatus.value = t('app.status.fetchingOsm');
   
   try {
       const updatedData = await addOSMToTerrain(terrainData.value, undefined, (status) => {
@@ -507,7 +509,7 @@ const handleFetchOSM = async () => {
       terrainData.value = updatedData;
   } catch (error) {
       console.error("Failed to fetch OSM data:", error);
-      alert("Failed to fetch OSM data.");
+      alert(t('app.error.fetchOsm'));
   } finally {
       isLoading.value = false;
   }
@@ -625,10 +627,10 @@ const handleClearSavedBatch = () => {
 const handleClearBatchCache = async () => {
   try {
     await clearBatchClientCache();
-    alert('Batch cache cleared.');
+    alert(t('app.error.batchCacheCleared'));
   } catch (error) {
     console.error('[Batch] Failed to clear cache:', error);
-    alert('Failed to clear batch cache.');
+    alert(t('app.error.batchCacheClearFailed'));
   }
 };
 

@@ -7,14 +7,14 @@
     >
       <span class="flex items-center gap-2">
         <LayoutGrid :size="16" class="text-gray-500 dark:text-gray-400 group-hover:text-[#FF6600] transition-colors" />
-        Surrounding Tiles
+        {{ t('map.surrounding.title') }}
       </span>
       <ChevronDown :size="14" :class="['transition-transform duration-200', isExpanded ? 'rotate-180' : '']" />
     </button>
 
     <template v-if="isExpanded">
       <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
-        Download adjacent tiles for out-of-bounds terrain. Uses standard 30m elevation, no OSM data.
+        {{ t('map.surrounding.description') }}
       </p>
 
       <!-- 3×3 Interactive Grid -->
@@ -24,7 +24,7 @@
           <div 
             v-if="pos === 'CENTER'"
             class="aspect-square rounded-md bg-[#FF6600]/15 border-2 border-[#FF6600]/60 flex items-center justify-center select-none"
-            title="Center tile (your main export)"
+            :title="t('map.surrounding.centerTileTitle')"
           >
             <span class="text-[11px] font-bold text-[#FF6600]">C</span>
           </div>
@@ -33,7 +33,7 @@
           <button 
             v-else
             @click="toggle(pos)"
-            :title="`Tile ${labels[pos]} (${pos})`"
+            :title="t('map.surrounding.tileTitle', { label: labels[pos], pos })"
             :class="[
               'aspect-square rounded-md border-2 flex items-center justify-center transition-all duration-150 text-[11px] font-semibold',
               selected.has(pos)
@@ -48,16 +48,16 @@
 
       <!-- Select All / Clear -->
       <div class="flex items-center justify-center gap-3 text-[10px]">
-        <button @click="selectAll" class="text-[#FF6600] hover:underline font-medium">Select All</button>
+        <button @click="selectAll" class="text-[#FF6600] hover:underline font-medium">{{ t('map.surrounding.selectAll') }}</button>
         <span class="text-gray-300 dark:text-gray-600">|</span>
-        <button @click="clearAll" class="text-gray-500 dark:text-gray-400 hover:underline">Clear</button>
+        <button @click="clearAll" class="text-gray-500 dark:text-gray-400 hover:underline">{{ t('map.surrounding.clear') }}</button>
       </div>
 
       <!-- Show on Map toggle -->
       <div class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
           <label class="text-[10px] text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer">
               <LayoutGrid :size="10" class="text-blue-500" />
-              Show on map
+              {{ t('map.surrounding.showOnMap') }}
           </label>
           <input 
               type="checkbox" 
@@ -68,7 +68,7 @@
 
       <!-- Satellite Quality -->
       <div class="space-y-1">
-        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Satellite Quality</span>
+        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{{ t('map.surrounding.satelliteQuality') }}</span>
         <select 
           v-model.number="satZoom"
           class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none"
@@ -82,18 +82,18 @@
       <!-- Output Info -->
       <div class="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded border border-gray-200 dark:border-gray-600 space-y-0.5">
         <div class="flex justify-between">
-          <span>Output size</span>
+          <span>{{ t('map.surrounding.outputSize') }}</span>
           <span class="text-gray-700 dark:text-gray-300 font-medium">{{ outputSize }}×{{ outputSize }}px</span>
         </div>
         <div class="flex justify-between">
-          <span>Scale</span>
+          <span>{{ t('map.surrounding.scale') }}</span>
           <span class="text-gray-700 dark:text-gray-300 font-medium">1m/px</span>
         </div>
         <div class="flex justify-between">
-          <span>Per-tile area</span>
+          <span>{{ t('map.surrounding.perTileArea') }}</span>
           <span class="text-gray-700 dark:text-gray-300 font-medium">{{ resolution }}×{{ resolution }}m</span>
         </div>
-        <p class="text-[9px] text-gray-400 dark:text-gray-500 pt-1 leading-tight">Elevation upsampled from 30m source data. Same pixel size as center tile.</p>
+        <p class="text-[9px] text-gray-400 dark:text-gray-500 pt-1 leading-tight">{{ t('map.surrounding.upsampleNote') }}</p>
       </div>
 
       <!-- Download Button -->
@@ -110,8 +110,8 @@
         <Loader2 v-if="isDownloading" :size="14" class="animate-spin" />
         <Download v-else :size="14" />
         <span v-if="isDownloading" class="truncate">{{ downloadStatus }}</span>
-        <span v-else-if="!terrainData && selected.size > 0">Generate terrain first</span>
-        <span v-else>Download {{ selected.size }} Tile{{ selected.size !== 1 ? 's' : '' }} (ZIP)</span>
+        <span v-else-if="!terrainData && selected.size > 0">{{ t('map.surrounding.generateTerrainFirst') }}</span>
+        <span v-else>{{ t('map.surrounding.download', { count: selected.size, suffix: selected.size !== 1 ? 's' : '' }) }}</span>
       </button>
 
       <!-- Cancel link -->
@@ -120,7 +120,7 @@
         @click="cancelDownload"
         class="w-full text-center text-[10px] text-gray-500 hover:text-red-500 transition-colors py-1"
       >
-        Cancel
+        {{ t('map.surrounding.cancel') }}
       </button>
     </template>
   </div>
@@ -128,6 +128,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { LayoutGrid, ChevronDown, Download, Loader2 } from 'lucide-vue-next';
 import {
   GRID_ORDER,
@@ -137,6 +138,8 @@ import {
   fetchSurroundingTiles,
   downloadSurroundingTilesZip,
 } from '../../services/surroundingTiles';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   terrainData: { type: Object, default: null },
@@ -193,7 +196,7 @@ const handleDownload = async () => {
   abortController = new AbortController();
 
   isDownloading.value = true;
-  downloadStatus.value = 'Starting...';
+  downloadStatus.value = t('map.surrounding.statusStarting');
 
   try {
     const results = await fetchSurroundingTiles(
@@ -213,15 +216,15 @@ const handleDownload = async () => {
       (s) => { downloadStatus.value = s; },
     );
 
-    downloadStatus.value = 'Done!';
+    downloadStatus.value = t('map.surrounding.statusDone');
     setTimeout(() => { if (!isDownloading.value) return; isDownloading.value = false; }, 1500);
   } catch (error) {
     if (error.name === 'AbortError') {
-      downloadStatus.value = 'Cancelled.';
+      downloadStatus.value = t('map.surrounding.statusCancelled');
       return;
     }
     console.error('Surrounding tiles failed:', error);
-    alert('Failed to generate surrounding tiles. Please try again.');
+    alert(t('map.surrounding.error'));
   } finally {
     isDownloading.value = false;
     abortController = null;

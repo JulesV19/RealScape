@@ -1,9 +1,9 @@
 <template>
   <div class="grid grid-cols-2 gap-2">
-    <BaseButton size="sm" variant="secondary" @click="$emit('copy')">Copy Configuration</BaseButton>
-    <BaseButton size="sm" variant="secondary" @click="$emit('paste')">Paste Configuration</BaseButton>
-    <BaseButton size="sm" variant="secondary" @click="$emit('save')">Save Configuration</BaseButton>
-    <BaseButton size="sm" variant="secondary" @click="triggerLoad">Load Configuration</BaseButton>
+    <BaseButton size="sm" variant="secondary" @click="$emit('copy')">{{ t('batch.copyConfig') }}</BaseButton>
+    <BaseButton size="sm" variant="secondary" @click="$emit('paste')">{{ t('batch.pasteConfig') }}</BaseButton>
+    <BaseButton size="sm" variant="secondary" @click="$emit('save')">{{ t('batch.saveConfig') }}</BaseButton>
+    <BaseButton size="sm" variant="secondary" @click="triggerLoad">{{ t('batch.loadConfig') }}</BaseButton>
     <input ref="fileInput" type="file" accept="application/json,.json" class="hidden" @change="handleFile" />
   </div>
   <p v-if="status" class="text-[10px] text-gray-500 dark:text-gray-400">{{ status }}</p>
@@ -11,7 +11,10 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import BaseButton from '../base/BaseButton.vue';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   status: { type: String, default: '' },

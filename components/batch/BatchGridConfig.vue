@@ -2,7 +2,7 @@
   <BaseCard class="space-y-3 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
     <div class="space-y-3">
       <div class="flex items-center justify-between">
-        <span class="text-xs text-gray-600 dark:text-gray-400">Width (columns)</span>
+        <span class="text-xs text-gray-600 dark:text-gray-400">{{ t('batch.gridWidthColumns') }}</span>
         <div class="flex items-center gap-2">
           <BaseButton size="sm" variant="secondary" @click="$emit('update:gridCols', Math.max(1, gridCols - 1))">−</BaseButton>
           <input
@@ -17,7 +17,7 @@
       </div>
 
       <div class="flex items-center justify-between">
-        <span class="text-xs text-gray-600 dark:text-gray-400">Height (rows)</span>
+        <span class="text-xs text-gray-600 dark:text-gray-400">{{ t('batch.gridHeightRows') }}</span>
         <div class="flex items-center gap-2">
           <BaseButton size="sm" variant="secondary" @click="$emit('update:gridRows', Math.max(1, gridRows - 1))">−</BaseButton>
           <input
@@ -35,44 +35,47 @@
     <div class="pt-2 border-top border-gray-200 dark:border-gray-600 space-y-2">
       <div class="grid grid-cols-3 gap-2 text-[10px]">
         <div class="text-center">
-          <div class="text-gray-400 dark:text-gray-500">Tiles</div>
+          <div class="text-gray-400 dark:text-gray-500">{{ t('batch.tiles') }}</div>
           <div class="text-gray-900 dark:text-white font-bold text-sm">{{ totalTiles }}</div>
         </div>
         <div class="text-center">
-          <div class="text-gray-400 dark:text-gray-500">Total Area</div>
+          <div class="text-gray-400 dark:text-gray-500">{{ t('batch.totalArea') }}</div>
           <div class="text-[#FF6600] font-bold text-sm">{{ totalAreaDisplay }}</div>
         </div>
         <div class="text-center">
-          <div class="text-gray-400 dark:text-gray-500">Perimeter</div>
+          <div class="text-gray-400 dark:text-gray-500">{{ t('batch.perimeter') }}</div>
           <div class="text-gray-900 dark:text-white font-bold text-sm">{{ perimeterDisplay }}</div>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-2 text-[10px]">
         <div class="text-center">
-          <div class="text-gray-400 dark:text-gray-500">West → East</div>
+          <div class="text-gray-400 dark:text-gray-500">{{ t('batch.westToEast') }}</div>
           <div class="text-gray-700 dark:text-gray-300 font-medium">{{ gridWidthDisplay }}</div>
         </div>
         <div class="text-center">
-          <div class="text-gray-400 dark:text-gray-500">North → South</div>
+          <div class="text-gray-400 dark:text-gray-500">{{ t('batch.northToSouth') }}</div>
           <div class="text-gray-700 dark:text-gray-300 font-medium">{{ gridHeightDisplay }}</div>
         </div>
         <div class="text-center">
-          <div class="text-gray-400 dark:text-gray-500">Per Tile</div>
+          <div class="text-gray-400 dark:text-gray-500">{{ t('batch.perTile') }}</div>
           <div class="text-gray-700 dark:text-gray-300 font-medium">{{ tileAreaDisplay }}</div>
         </div>
       </div>
     </div>
 
     <p v-if="totalTiles > 50" class="text-[10px] text-amber-600 dark:text-amber-500 font-medium">
-      ⚠️ Large batch ({{ totalTiles }} tiles). This will take a long time and trigger many downloads.
+      ⚠️ {{ t('batch.largeBatchWarning', { count: totalTiles }) }}
     </p>
   </BaseCard>
 </template>
 
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import BaseCard from '../base/BaseCard.vue';
 import BaseButton from '../base/BaseButton.vue';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   gridCols: { type: Number, default: 3 },

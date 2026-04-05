@@ -9,7 +9,7 @@
         @input="handleInput"
         @focus="handleFocus"
         @keydown="handleKeydown"
-        placeholder="Search for a location..."
+        :placeholder="t('map.searchPlaceholder')"
         class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 pl-8 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6600] focus:border-[#FF6600] outline-none placeholder-gray-400 dark:placeholder-gray-500"
       />
       
@@ -49,7 +49,7 @@
         class="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 text-center"
       >
         <MapPinOff :size="20" class="mx-auto mb-2 text-gray-400 dark:text-gray-500" />
-        No locations found for "{{ searchQuery }}"
+        {{ t('map.noLocationsFound', { query: searchQuery }) }}
       </div>
 
       <!-- Results List -->
@@ -83,8 +83,11 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Search, Loader2, X, MapPinOff } from 'lucide-vue-next';
 import { searchLocation, getShortName, getLocationTypeIcon } from '../../services/nominatim';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const emit = defineEmits(['select']);
 

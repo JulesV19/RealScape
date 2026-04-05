@@ -7,7 +7,7 @@
       @click="$emit('set-batch-mode', false)"
     >
       <Map :size="12" />
-      Single Tile
+      {{ t('mode.singleTile') }}
     </BaseButton>
     <BaseButton
       block
@@ -16,14 +16,17 @@
       @click="$emit('set-batch-mode', true)"
     >
       <Grid3X3 :size="12" />
-      Batch Job
+      {{ t('mode.batchJob') }}
     </BaseButton>
   </div>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n';
 import BaseButton from '../base/BaseButton.vue';
 import { Grid3X3, Map } from 'lucide-vue-next';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const tabBase = 'flex-1 py-1.5 px-3 text-xs font-medium rounded-md flex items-center justify-center gap-1.5 transition-all';
 const tabInactive = 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800';

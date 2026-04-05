@@ -12,11 +12,11 @@
           : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6600] focus:border-[#FF6600]',
       ]"
     >
-      <option :value="512">512 x 512 px (Fast)</option>
-      <option :value="1024">1024 x 1024 px (Standard)</option>
-      <option :value="2048">2048 x 2048 px (High Detail)</option>
-      <option :value="4096">4096 x 4096 px (Very High)</option>
-      <option :value="8192">8192 x 8192 px (Ultra)</option>
+      <option :value="512">512 x 512 px ({{ t('map.resolutionFast') }})</option>
+      <option :value="1024">1024 x 1024 px ({{ t('map.resolutionStandard') }})</option>
+      <option :value="2048">2048 x 2048 px ({{ t('map.resolutionHighDetail') }})</option>
+      <option :value="4096">4096 x 4096 px ({{ t('map.resolutionVeryHigh') }})</option>
+      <option :value="8192">8192 x 8192 px ({{ t('map.resolutionUltra') }})</option>
     </select>
     <div class="text-[10px] text-gray-500 dark:text-gray-400 pt-1 space-y-1">
       <slot></slot>
@@ -25,6 +25,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n({ useScope: 'global' });
+
 defineProps({
   modelValue: { type: Number, required: true },
   label:      { type: String,  default: '' },

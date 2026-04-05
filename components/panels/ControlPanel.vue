@@ -37,22 +37,22 @@
     <div class="space-y-4">
       <label class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
         <Box :size="16" class="text-gray-700 dark:text-gray-300" />
-        Output Settings
+        {{ t('controlPanel.outputSettings') }}
       </label>
 
       <!-- When an uploaded source has native dimensions, resolution is driven
            by the file's native coverage; show an info row instead of dropdown. -->
       <div v-if="nativeDims" class="space-y-1">
-        <label class="text-xs text-gray-500 dark:text-gray-400">Resolution (Output Size)</label>
+        <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('controlPanel.resolutionOutputSize') }}</label>
         <div class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-2 text-sm text-gray-500 dark:text-gray-400">
           {{ nativeDims.width }} × {{ nativeDims.height }} px
-          <span class="text-[10px] ml-1">({{ nativeDims.sourceLabel }} native coverage)</span>
+          <span class="text-[10px] ml-1">({{ t('controlPanel.nativeCoverage', { source: nativeDims.sourceLabel }) }})</span>
         </div>
         <div class="text-[10px] text-gray-500 dark:text-gray-400 pt-1 space-y-1">
           <p v-if="nativeDims.note" class="text-[#FF6600] font-medium">
             {{ nativeDims.note }}
           </p>
-          <p>Remove the uploaded file to choose a custom resolution.</p>
+          <p>{{ t('controlPanel.removeUploadedForCustomResolution') }}</p>
         </div>
       </div>
 
@@ -60,19 +60,19 @@
         v-else
         :modelValue="resolution"
         @update:modelValue="$emit('resolutionChange', $event)"
-        label="Resolution (Output Size)"
+        :label="t('controlPanel.resolutionOutputSize')"
       >
-        <p>• Downloads match selected size exactly.</p>
-        <p>• Fetches max detail (Terrain Z15, Sat Z17).</p>
-        <p v-if="resolution >= 4096" class="text-amber-600 dark:text-amber-500 font-medium">⚠️ Large area. May require high RAM.</p>
-        <p>• Current Scale: <span class="text-[#FF6600]">{{ metersPerPixel.toFixed(2) }}m/px</span></p>
+        <p>{{ t('controlPanel.downloadsMatch') }}</p>
+        <p>{{ t('controlPanel.fetchesMaxDetail') }}</p>
+        <p v-if="resolution >= 4096" class="text-amber-600 dark:text-amber-500 font-medium">{{ t('controlPanel.largeAreaRamWarning') }}</p>
+        <p>{{ t('controlPanel.currentScale') }}: <span class="text-[#FF6600]">{{ metersPerPixel.toFixed(2) }}m/px</span></p>
       </ResolutionSelector>
 
       <!-- OSM Toggle -->
       <div class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
         <BaseToggle v-model="fetchOSM">
           <Trees :size="12" class="text-emerald-600 dark:text-emerald-400" />
-          Include OSM Features
+          {{ t('controlPanel.includeOsmFeatures') }}
         </BaseToggle>
       </div>
 
@@ -97,7 +97,7 @@
       >
         <span class="flex items-center gap-2">
           <MapPin :size="16" class="text-gray-500 dark:text-gray-400 group-hover:text-[#FF6600] transition-colors" />
-          Center Coordinates
+          {{ t('controlPanel.centerCoordinates') }}
         </span>
         <ChevronDown :size="14" :class="['transition-transform duration-200', showCoordinates ? 'rotate-180' : '']" />
       </button>
@@ -123,7 +123,7 @@
       >
         <span class="flex items-center gap-2">
           <Settings :size="16" class="text-gray-500 dark:text-gray-400 group-hover:text-[#FF6600] transition-colors" />
-          Configuration & Session
+          {{ t('controlPanel.configurationSession') }}
         </span>
         <ChevronDown :size="14" :class="['transition-transform duration-200', showConfig ? 'rotate-180' : '']" />
       </button>
@@ -175,6 +175,7 @@
 
 <script setup>
     import { ref, computed, onMounted, watch } from 'vue';
+  import { useI18n } from 'vue-i18n';
     import { MapPin, Box, Trees, ChevronDown, Settings } from 'lucide-vue-next';
 import BaseToggle from '../base/BaseToggle.vue';
 import CoordinatesInput from '../map/CoordinatesInput.vue';
@@ -194,6 +195,8 @@ import { downloadJsonFile } from '../../services/traceability';
 import { exportJobData, importJobData } from '../../services/jobData';
 import { buildRunConfiguration as buildRunConfigurationBase } from '../../services/runConfiguration';
 
+const { t } = useI18n({ useScope: 'global' });
+
 
 const props = defineProps(['center', 'zoom', 'resolution', 'isGenerating', 'terrainData', 'generationCacheKey', 'uploadedTifFile', 'uploadedTifMeta']);
 
@@ -212,7 +215,7 @@ const jobStatus = ref('');
 const handleExportJob = async () => {
     if (!props.terrainData) return;
     isExportingJob.value = true;
-    jobStatus.value = 'Preparing job data...';
+  jobStatus.value = t('status.jobPreparing');
     try {
         const blob = await exportJobData(props.terrainData, props.generationCacheKey);
         const date = new Date().toISOString().slice(0, 10);
@@ -220,10 +223,10 @@ const handleExportJob = async () => {
         const lng = props.center.lng.toFixed(4);
         const filename = `MapNG_Job_${date}_${lat}_${lng}.mapng`;
         triggerDownload(blob, filename);
-        jobStatus.value = 'Job exported successfully.';
+        jobStatus.value = t('status.jobExported');
     } catch (e) {
         console.error('Job export failed:', e);
-        jobStatus.value = 'Job export failed.';
+        jobStatus.value = t('status.jobExportFailed');
     } finally {
         isExportingJob.value = false;
     }
@@ -231,14 +234,14 @@ const handleExportJob = async () => {
 const handleImportJobFile = async (file) => {
     if (!file) return;
     isImportingJob.value = true;
-    jobStatus.value = 'Importing job data...';
+      jobStatus.value = t('status.jobImporting');
     try {
         const data = await importJobData(file);
         emit('importData', data);
-        jobStatus.value = 'Job imported successfully.';
+        jobStatus.value = t('status.jobImported');
     } catch (e) {
         console.error('Job import failed:', e);
-        jobStatus.value = 'Job import failed: ' + e.message;
+        jobStatus.value = t('status.jobImportFailed', { message: e.message });
     } finally {
         isImportingJob.value = false;
     }
@@ -307,7 +310,7 @@ watch(showCoordinates, (v) => localStorage.setItem('mapng_showCoordinates', Stri
 watch(() => props.terrainData, (newData) => {
     if (newData?.usgsFallback) {
         elevationSource.value = 'default';
-    alert("USGS 1m data for this area was missing or corrupt. Falling back to the Standard Terrarium dataset.\n\nOutput remains on the app's 1m/px processing grid.");
+  alert(t('app.error.usgsFallback'));
     }
 });
 
@@ -434,38 +437,38 @@ const copyRunConfiguration = async () => {
     try {
         if (navigator.clipboard?.writeText) {
             await navigator.clipboard.writeText(text);
-        runConfigStatus.value = 'Run configuration copied to clipboard (GPXZ key masked).';
+        runConfigStatus.value = t('status.runConfigCopied');
             return;
         }
     } catch {
     }
-    runConfigStatus.value = 'Clipboard write unavailable in this browser/session.';
+      runConfigStatus.value = t('status.clipboardWriteUnavailable');
 };
 
 const pasteRunConfiguration = async () => {
     try {
         if (!navigator.clipboard?.readText) {
-            runConfigStatus.value = 'Clipboard read unavailable in this browser/session.';
+          runConfigStatus.value = t('status.clipboardReadUnavailable');
             return;
         }
         const text = await navigator.clipboard.readText();
         if (!text?.trim()) {
-            runConfigStatus.value = 'Clipboard is empty.';
+          runConfigStatus.value = t('status.clipboardEmpty');
             return;
         }
         const json = JSON.parse(text);
         applyRunConfiguration(json);
-        runConfigStatus.value = 'Configuration pasted from clipboard.';
+        runConfigStatus.value = t('status.runConfigPasted');
     } catch (error) {
         console.error('Failed to paste run configuration:', error);
-        runConfigStatus.value = 'Clipboard content is not valid configuration JSON.';
+        runConfigStatus.value = t('status.runConfigInvalidJson');
     }
 };
 
 const saveRunConfiguration = () => {
     const payload = buildRunConfiguration();
     downloadJsonFile(payload, `MapNG_RunConfig_${new Date().toISOString().slice(0, 10)}.json`);
-    runConfigStatus.value = 'Configuration downloaded as JSON.';
+  runConfigStatus.value = t('status.runConfigDownloaded');
 };
 
 const toNumberOrNull = (value) => {
@@ -546,10 +549,10 @@ const handleRunConfigFile = async (file) => {
         const text = await file.text();
         const json = JSON.parse(text);
         applyRunConfiguration(json);
-        runConfigStatus.value = 'Configuration loaded. Generate to rerun with these settings.';
+        runConfigStatus.value = t('status.runConfigLoadedSingle');
     } catch (error) {
         console.error('Failed to load run configuration:', error);
-        runConfigStatus.value = 'Invalid configuration file (schema mismatch).';
+        runConfigStatus.value = t('status.runConfigInvalidFile');
     }
 };
 </script>

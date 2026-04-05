@@ -4,7 +4,7 @@
     <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 flex items-start gap-2">
       <AlertTriangle :size="14" class="text-amber-500 mt-0.5 shrink-0" />
       <p class="text-[10px] text-amber-700 dark:text-amber-400 leading-relaxed">
-        <span class="font-bold">Resource heavy.</span> Large grids or high-resolution tiles can still hit browser memory or download limits.
+        <span class="font-bold">{{ t('batch.resourceHeavy') }}</span> {{ t('batch.resourceHeavyBody') }}
       </p>
     </div>
 
@@ -23,14 +23,14 @@
 
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <p class="text-xs font-medium text-gray-700 dark:text-gray-300">Tile Offsets (meters)</p>
-        <BaseButton size="sm" variant="secondary" @click="resetTileOffsets">Reset All</BaseButton>
+        <p class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('batch.tileOffsets') }}</p>
+        <BaseButton size="sm" variant="secondary" @click="resetTileOffsets">{{ t('batch.resetAll') }}</BaseButton>
       </div>
       <label class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-700 dark:text-gray-300">
-        <span>Tiles Follow Map Center</span>
+        <span>{{ t('batch.tilesFollowCenter') }}</span>
         <input type="checkbox" v-model="tileFollowCenterLocal" class="accent-[#FF6600] w-4 h-4 cursor-pointer" />
       </label>
-      <p class="text-[10px] text-gray-500 dark:text-gray-400">Move tiles independently by offsetting each tile center (X east/west, Y north/south).</p>
+      <p class="text-[10px] text-gray-500 dark:text-gray-400">{{ t('batch.offsetHint') }}</p>
       <div class="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 p-2 space-y-1">
         <div
           v-for="entry in tileOffsetEntries"
@@ -66,10 +66,10 @@
 
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <p class="text-xs font-medium text-gray-700 dark:text-gray-300">Tile Names</p>
-        <BaseButton size="sm" variant="secondary" @click="resetTileNames">Reset All</BaseButton>
+        <p class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('batch.tileNames') }}</p>
+        <BaseButton size="sm" variant="secondary" @click="resetTileNames">{{ t('batch.resetAll') }}</BaseButton>
       </div>
-      <p class="text-[10px] text-gray-500 dark:text-gray-400">Defaults use row/column labels. Rename any tile to change its export ZIP filename and batch labels.</p>
+      <p class="text-[10px] text-gray-500 dark:text-gray-400">{{ t('batch.tileNamesHint') }}</p>
       <div class="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 p-2 space-y-1">
         <div
           v-for="entry in tileNameEntries"
@@ -94,28 +94,28 @@
     <div class="space-y-2">
       <label class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
         <Box :size="16" class="text-gray-700 dark:text-gray-300" />
-        Tile Resolution
+        {{ t('batch.tileResolution') }}
       </label>
       <ResolutionSelector
         :modelValue="resolution"
         @update:modelValue="$emit('resolutionChange', $event)"
       >
-        <p>Each tile: {{ resolution }}m × {{ resolution }}m at 1m/px</p>
-        <p>Grid coverage: {{ gridWidthDisplay }} × {{ gridHeightDisplay }}</p>
-        <p v-if="resolution >= 4096" class="text-amber-600 dark:text-amber-500 font-medium">⚠️ High resolution tiles require significant RAM per tile.</p>
+        <p>{{ t('batch.tileEach', { resolution }) }}</p>
+        <p>{{ t('batch.gridCoverage', { w: gridWidthDisplay, h: gridHeightDisplay }) }}</p>
+        <p v-if="resolution >= 4096" class="text-amber-600 dark:text-amber-500 font-medium">⚠️ {{ t('batch.highResolutionWarning') }}</p>
       </ResolutionSelector>
     </div>
 
     <div class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
       <label class="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
         <Mountain :size="12" class="text-amber-600 dark:text-amber-400" />
-        Shared Elevation Baseline (all heightmaps use one min/max)
+        {{ t('batch.sharedBaseline') }}
       </label>
       <input type="checkbox" v-model="sharedElevationBaseline" class="accent-[#FF6600] w-4 h-4 cursor-pointer" />
     </div>
 
     <p v-if="sharedElevationBaseline" class="text-[10px] text-amber-600 dark:text-amber-500">
-      Extra pre-scan required: batch runs one elevation-only pass first to compute global min/max.
+      {{ t('batch.sharedBaselineHint') }}
     </p>
 
     <hr class="border-gray-200 dark:border-gray-600" />
@@ -128,7 +128,7 @@
     <div class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
       <label class="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
         <Trees :size="12" class="text-emerald-600 dark:text-emerald-400" />
-        Include OSM Features
+        {{ t('batch.includeOsm') }}
       </label>
       <input type="checkbox" v-model="includeOSM" class="accent-[#FF6600] w-4 h-4 cursor-pointer" />
     </div>
@@ -153,7 +153,7 @@
         class="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#FF6600] transition-colors group">
         <span class="flex items-center gap-2">
           <MapPin :size="16" class="text-gray-500 dark:text-gray-400 group-hover:text-[#FF6600] transition-colors" />
-          Grid Center
+          {{ t('batch.gridCenter') }}
         </span>
         <ChevronDown :size="14" :class="['transition-transform duration-200', showCoordinates ? 'rotate-180' : '']" />
       </button>
@@ -177,10 +177,10 @@
 
     <!-- Selected exports count -->
     <div class="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600 space-y-1">
-      <p><span class="font-medium text-gray-700 dark:text-gray-300">{{ selectedExportCount }} export{{ selectedExportCount !== 1 ? 's' : '' }}</span> selected per tile</p>
-      <p>{{ totalTiles }} tiles × {{ selectedExportCount }} exports = <span class="text-[#FF6600] font-bold">{{ totalTiles * selectedExportCount }} total files</span> (packaged as {{ totalTiles }} ZIPs)</p>
+      <p><span class="font-medium text-gray-700 dark:text-gray-300">{{ t('batch.selectedPerTile', { count: selectedExportCount, suffix: selectedExportCount !== 1 ? 's' : '' }) }}</span></p>
+      <p>{{ t('batch.totalFiles', { tiles: totalTiles, exports: selectedExportCount, total: totalTiles * selectedExportCount }) }}</p>
       <p class="text-amber-600 dark:text-amber-500 font-medium mt-1">
-        ℹ️ Your browser may ask permission to download multiple files.
+        ℹ️ {{ t('batch.browserDownloadHint') }}
       </p>
     </div>
 
@@ -202,21 +202,21 @@
         @click="handleStart"
       >
         <Play :size="16" />
-        Start Batch Job ({{ totalTiles }} tiles)
+        {{ t('batch.startBatch', { tiles: totalTiles }) }}
       </BaseButton>
 
       <template v-if="hasResumableSavedState">
         <BaseButton block size="md" variant="primary" class="bg-emerald-600 hover:bg-emerald-700" @click="$emit('resumeBatch')">
           <RotateCcw :size="14" />
-          Resume Previous Job ({{ savedState.totalCompleted }}/{{ savedState.tiles.length }} done)
+          {{ t('batch.resumePrevious', { done: savedState.totalCompleted, total: savedState.tiles.length }) }}
         </BaseButton>
         <BaseButton block size="sm" variant="secondary" @click="$emit('clearSavedBatch')">
           <X :size="12" />
-          Clear Saved Job
+          {{ t('batch.clearSavedJob') }}
         </BaseButton>
         <BaseButton block size="sm" variant="secondary" @click="$emit('clearCache')">
           <X :size="12" />
-          Clear Cache
+          {{ t('batch.clearCache') }}
         </BaseButton>
       </template>
     </div>
@@ -225,6 +225,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Grid3X3, Box, Trees, Mountain, MapPin, ChevronDown, Play, RotateCcw, X, AlertTriangle } from 'lucide-vue-next';
 import CoordinatesInput from '../map/CoordinatesInput.vue';
 import ElevationSourceSelector from '../map/ElevationSourceSelector.vue';
@@ -236,6 +237,8 @@ import BatchRunConfigControls from '../batch/BatchRunConfigControls.vue';
 import BaseButton from '../base/BaseButton.vue';
 import { probeGPXZLimits } from '../../services/terrain';
 import { cloneRateLimitInfo, downloadJsonFile } from '../../services/traceability';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   center: { type: Object, required: true },
@@ -531,38 +534,38 @@ const copyRunConfiguration = async () => {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
-      runConfigStatus.value = 'Run configuration copied to clipboard (GPXZ key masked).';
+      runConfigStatus.value = t('status.runConfigCopied');
       return;
     }
   } catch {
   }
-  runConfigStatus.value = 'Clipboard write unavailable in this browser/session.';
+  runConfigStatus.value = t('status.clipboardWriteUnavailable');
 };
 
 const pasteRunConfiguration = async () => {
   try {
     if (!navigator.clipboard?.readText) {
-      runConfigStatus.value = 'Clipboard read unavailable in this browser/session.';
+      runConfigStatus.value = t('status.clipboardReadUnavailable');
       return;
     }
     const text = await navigator.clipboard.readText();
     if (!text?.trim()) {
-      runConfigStatus.value = 'Clipboard is empty.';
+      runConfigStatus.value = t('status.clipboardEmpty');
       return;
     }
     const json = JSON.parse(text);
     applyRunConfiguration(json);
-    runConfigStatus.value = 'Configuration pasted from clipboard.';
+    runConfigStatus.value = t('status.runConfigPasted');
   } catch (error) {
     console.error('Failed to paste batch configuration:', error);
-    runConfigStatus.value = 'Clipboard content is not valid configuration JSON.';
+    runConfigStatus.value = t('status.runConfigInvalidJson');
   }
 };
 
 const saveRunConfiguration = () => {
   const payload = buildRunConfiguration();
   downloadJsonFile(payload, `MapNG_BatchRunConfig_${new Date().toISOString().slice(0, 10)}.json`);
-  runConfigStatus.value = 'Configuration downloaded as JSON.';
+  runConfigStatus.value = t('status.runConfigDownloaded');
 };
 
 const toNumberOrNull = (value) => {
@@ -690,10 +693,10 @@ const handleRunConfigFile = async (file) => {
     const text = await file.text();
     const json = JSON.parse(text);
     applyRunConfiguration(json);
-    runConfigStatus.value = 'Configuration loaded. Start batch to rerun with these settings.';
+    runConfigStatus.value = t('status.runConfigLoadedBatch');
   } catch (error) {
     console.error('Failed to load batch configuration:', error);
-    runConfigStatus.value = 'Invalid configuration file (schema mismatch).';
+    runConfigStatus.value = t('status.runConfigInvalidFile');
   }
 };
 

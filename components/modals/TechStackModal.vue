@@ -7,7 +7,7 @@
           <div class="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
             <Code :size="20" class="text-[#FF6600]" />
           </div>
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white">MapNG Tech Stack</h2>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ t('tech.title') }}</h2>
         </div>
         <button 
           @click="$emit('close')" 
@@ -20,164 +20,79 @@
       <!-- Content -->
       <div class="p-6 space-y-8">
         <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">Core Framework</h3>
+          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">{{ t('tech.coreFramework') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Vue 3</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Composition API & reactive state management</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">JavaScript (ES6+)</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Modern standard with modules, async/await, and worker messaging</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Tailwind CSS</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Utility-first styling with dark mode support</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Vite</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Fast dev server & optimized production builds</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Reactive Local State</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Pinia + Vue refs/computed with localStorage persistence</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Lucide Icons</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Beautiful, consistent icon set (Vue components)</div>
+            <div v-for="card in tm('tech.sections.core')" :key="card.name" class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-gray-900 dark:text-white">{{ card.name }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ card.desc }}</div>
             </div>
           </div>
         </section>
 
         <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">3D Engine & Rendering</h3>
+          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">{{ t('tech.rendering') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Three.js</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">WebGL 3D engine — geometry, materials, textures, export</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">TresJS</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Declarative Vue 3 renderer for Three.js scenes</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Cientos</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">OrbitControls, HDR environment, shadows, sky</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Cascaded Shadow Maps</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">4-cascade CSM with 4096px shadow maps & PCF filtering</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">HDR Environment</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">4K puresky HDRI for realistic ambient & reflection lighting</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">GLTFExporter</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Full 3D model export with terrain, OSM features & surroundings</div>
+            <div v-for="card in tm('tech.sections.render')" :key="card.name" class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-gray-900 dark:text-white">{{ card.name }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ card.desc }}</div>
             </div>
           </div>
         </section>
 
         <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">Mapping & GIS</h3>
+          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">{{ t('tech.mapping') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Leaflet & Vue-Leaflet</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Interactive 2D map with 3 base layers & dark mode</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">proj4 & GeoTIFF</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">CRS reprojection, DEM parsing & GeoTIFF export</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Local Transverse Mercator</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Custom metric projection for pixel-perfect 1m/px grids</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Nominatim Geocoding</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dual-endpoint search plus reverse lookup for suggested BeamNG level names</div>
+            <div v-for="card in tm('tech.sections.map')" :key="card.name" class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-gray-900 dark:text-white">{{ card.name }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ card.desc }}</div>
             </div>
           </div>
         </section>
 
         <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">Texture & Image Processing</h3>
+          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">{{ t('tech.texture') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">HTML5 Canvas API</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Procedural texture generation up to 8192×8192 with OSM land-use, roads, and overlays</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">fast-png</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">16-bit precision heightmap & road mask encoding</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">OSM Lane Renderer</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Procedural road overlays, junction fills, crosswalk hints, and smoothed curves</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Web Workers</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Off-thread terrain & image resampling with transferable buffers</div>
+            <div v-for="card in tm('tech.sections.tex')" :key="card.name" class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-gray-900 dark:text-white">{{ card.name }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ card.desc }}</div>
             </div>
           </div>
         </section>
 
         <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">Data Sources</h3>
+          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">{{ t('tech.sources') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">AWS Terrain Tiles</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Global 30m SRTM elevation (Terrarium encoding @ Z15)</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">USGS National Map</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">1m DEM via TNM Access API (CONUS, Alaska, Hawaii)</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">GPXZ API</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Premium global hi-res elevation with auto-chunking, rate-limit probing &amp; concurrent requests for paid plans</div>
-            </div>
-             <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Esri World Imagery</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">High-res satellite textures at Z17 (~1.2m/px)</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Overpass API (OSM)</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Roads, buildings, land-use, vegetation, barriers (3 failover endpoints)</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">JSZip</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Client-side ZIP packaging for BeamNG levels, surrounding tiles, batch jobs, and .mapng sessions</div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Blob URL Management</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Binary handling for large textures, heightmaps, and packaged exports</div>
+            <div v-for="card in tm('tech.sections.src')" :key="card.name" class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-gray-900 dark:text-white">{{ card.name }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ card.desc }}</div>
             </div>
           </div>
         </section>
 
         <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">Deployment</h3>
+          <h3 class="text-sm font-semibold text-[#FF6600] uppercase tracking-wider">{{ t('tech.deployment') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              <div class="font-medium text-gray-900 dark:text-white">Cloudflare Pages</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Global edge-deployed static hosting via Wrangler CLI</div>
+            <div v-for="card in tm('tech.sections.deploy')" :key="card.name" class="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-gray-900 dark:text-white">{{ card.name }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ card.desc }}</div>
             </div>
           </div>
         </section>
       </div>
       
       <div class="p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-center">
-        <p class="text-xs text-gray-500 dark:text-gray-400">Built to assist with BeamNG.drive modding workflows.</p>
-        <p class="italic opacity-70 text-xs text-gray-400 dark:text-gray-500 mt-2">Open-source tooling for real-world terrain workflows.</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('tech.footer1') }}</p>
+        <p class="italic opacity-70 text-xs text-gray-400 dark:text-gray-500 mt-2">{{ t('tech.footer2') }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n';
 import { Code, X } from 'lucide-vue-next';
+
+const { t, tm } = useI18n({ useScope: 'global' });
 
 defineEmits(['close']);
 </script>

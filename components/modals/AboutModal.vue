@@ -7,8 +7,8 @@
             <Layers :size="20" class="text-white" />
           </div>
           <div>
-            <h2 class="text-lg font-bold text-gray-900 dark:text-white">About MapNG</h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400">BeamNG.drive Terrain Generator</p>
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ t('about.title') }}</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('about.subtitle') }}</p>
           </div>
         </div>
         <button @click="$emit('close')" class="text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
@@ -18,84 +18,59 @@
       
       <div class="p-6 overflow-y-auto custom-scrollbar space-y-6 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
         <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-lg p-4 text-orange-900 dark:text-orange-100">
-          <p class="font-medium">MapNG is a desktop-focused web app for turning real-world locations into terrain, textures, GIS data, 3D meshes, and BeamNG-oriented exports.</p>
+          <p class="font-medium">{{ t('about.hero') }}</p>
         </div>
 
         <div class="space-y-4">
           <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Globe :size="16" class="text-[#FF6600]" />
-            What does it do?
+            {{ t('about.whatTitle') }}
           </h3>
-          <p>
-            Select a location, choose an elevation source, generate the terrain, and export the parts of the workflow you need. MapNG can produce 16-bit heightmaps, satellite and OSM-derived textures, GIS exports, 3D meshes, BeamNG `.ter` files, and an experimental BeamNG level package. It also includes a live 3D preview with optional OSM-driven buildings, vegetation, barriers, and surrounding terrain context.
-          </p>
+          <p>{{ t('about.whatBody') }}</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Elevation Sources</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.elevationTitle') }}</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
-              <li>Standard 30m Global (AWS Terrarium/SRTM)</li>
-              <li>USGS 1m DEM (USA — CONUS, Alaska, Hawaii)</li>
-              <li>GPXZ Premium High-Res (Global, concurrent requests for paid plans)</li>
+              <li v-for="item in tm('about.elevationItems')" :key="item">{{ item }}</li>
             </ul>
           </div>
           <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">3D Preview</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.previewTitle') }}</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
-              <li>HDR environment lighting &amp; CSM shadows</li>
-              <li>Satellite, OSM, Hybrid, segmented &amp; clay modes</li>
-              <li>3D buildings, trees, bushes &amp; barriers</li>
-              <li>Surrounding terrain tiles (8 directions)</li>
-              <li>Quality &amp; wireframe controls</li>
+              <li v-for="item in tm('about.previewItems')" :key="item">{{ item }}</li>
             </ul>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Export Formats</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.exportTitle') }}</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
-              <li>16-bit PNG Heightmap</li>
-              <li>Satellite Texture (PNG)</li>
-              <li>OSM "Blueprint" Texture (up to 8192×8192 PNG)</li>
-              <li>Hybrid Satellite + Roads Texture (PNG)</li>
-              <li>Segmented Satellite Texture (PNG)</li>
-              <li>Segmented Hybrid Texture (PNG)</li>
-              <li>Road Mask (16-bit PNG)</li>
-              <li>GeoTIFF (WGS84 or source CRS)</li>
-              <li>GeoJSON Vector Data</li>
-              <li>GLB 3D Model (+ optional surroundings)</li>
-              <li>Collada DAE (+ optional surroundings)</li>
-              <li>BeamNG Terrain (.ter)</li>
-              <li>BeamNG Level Package (.zip, experimental)</li>
-              <li>Job Data (.mapng) - Complete compressed session package</li>
+              <li v-for="item in tm('about.exportItems')" :key="item">{{ item }}</li>
             </ul>
           </div>
           <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">OSM Texture Features</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.osmTitle') }}</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
-              <li>40+ land-use color categories</li>
-              <li>Procedural road overlays and surface-aware linework</li>
-              <li>Junction fills and smoothed road/path curves</li>
-              <li>Crosswalk detection where OSM data supports it</li>
-              <li>Customizable OSM background color</li>
+              <li v-for="item in tm('about.osmItems')" :key="item">{{ item }}</li>
             </ul>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Surrounding Tiles</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.surroundingTitle') }}</h4>
             <p class="text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-              Download up to 8 adjacent terrain tiles as a ZIP package with heightmaps, satellite textures, and metadata — perfect for building multi-tile BeamNG worlds.
+              {{ t('about.surroundingBody') }}
             </p>
           </div>
           <div class="space-y-2">
-             <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Resolution Note</h4>
+             <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.resolutionTitle') }}</h4>
              <p class="text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-                <strong>All heightmaps are exported at 1 meter per pixel.</strong><br/>
-                Output sizes range from 512px to 8192px (0.26 km² to 67 km²). Standard 30m data is bilinearly upsampled for smooth surfaces.
+                <strong>{{ t('about.resolutionStrong') }}</strong><br/>
+                {{ t('about.resolutionBody') }}
              </p>
           </div>
         </div>
@@ -103,50 +78,33 @@
         <div class="space-y-2">
             <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
               <Grid3X3 :size="14" class="text-[#FF6600]" />
-            Batch Job Mode
+            {{ t('about.batchTitle') }}
           </h4>
           <p class="text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-            Process large areas by defining a grid of tiles (up to 20×20). Each tile is generated sequentially with the selected exports packaged into an individual ZIP. Features include:
+            {{ t('about.batchIntro') }}
           </p>
           <ul class="space-y-1 list-disc list-inside marker:text-[#FF6600] text-xs">
-            <li>Configurable grid dimensions, resolution, and export selections</li>
-            <li>Independent tile X/Y offsets and live drag editing on the map</li>
-            <li>Tiles Follow Map Center toggle for center-anchored or world-locked tile layouts</li>
-            <li>Shared Elevation Baseline option for one min/max across all tile heightmaps</li>
-            <li>Automatic stitched full-grid 16-bit verification heightmap on successful runs</li>
-            <li>Live progress tracking with color-coded tile grid and satellite thumbnails</li>
-            <li>Persistent state — pause, resume, and retry failed tiles</li>
-            <li>Automatic memory cleanup between tiles for stability</li>
-            <li>GPXZ concurrent requests for paid plans (based on account limits)</li>
-            <li>Per-tile coordinate-stamped filenames for easy organization</li>
+            <li v-for="item in tm('about.batchItems')" :key="item">{{ item }}</li>
           </ul>
         </div>
 
         <div class="space-y-2">
-          <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">BeamNG Level Export</h4>
+          <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.beamngTitle') }}</h4>
           <p class="text-xs bg-amber-50 dark:bg-amber-900/20 p-3 rounded border border-amber-200 dark:border-amber-900/30 text-amber-800 dark:text-amber-200">
-            The BeamNG level package export is still experimental. It can build a playable level ZIP with flavor-based official assets, inferred terrain materials, water, vegetation, and a suggested level name, but it still needs more validation and polish.
+            {{ t('about.beamngBody') }}
           </p>
         </div>
 
         <div class="space-y-2">
-            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Additional Features</h4>
+            <h4 class="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">{{ t('about.additionalTitle') }}</h4>
             <ul class="space-y-2 list-disc list-inside marker:text-[#FF6600]">
-              <li><strong>Job Import/Export:</strong> Save and restore full sessions via .mapng files</li>
-              <li>Nominatim location search with type-categorized icons</li>
-              <li>Preset scenic locations (Grand Canyon, Mt. Fuji, Tail of the Dragon, etc.)</li>
-              <li>GPXZ plan auto-detection with concurrent request support</li>
-              <li>Web Worker-based off-thread terrain processing</li>
-              <li>Light &amp; dark mode with persistent preferences</li>
-              <li>Automatic geolocation on first visit</li>
-              <li>Generation caching — skip reprocessing when switching views</li>
-              <li>Abort support for long-running generation tasks</li>
+              <li v-for="item in tm('about.additionalItems')" :key="item">{{ item }}</li>
             </ul>
         </div>
 
         <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
           <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Created by <a href="https://github.com/nikkiluzader" target="_blank" class="text-[#FF6600] hover:underline">Nikki Luzader</a> • Open Source on <a href="https://github.com/nikkiluzader/mapng" target="_blank" class="text-[#FF6600] hover:underline">GitHub</a>
+            {{ t('about.footerPrefix') }} <a href="https://github.com/nikkiluzader" target="_blank" class="text-[#FF6600] hover:underline">Nikki Luzader</a> • {{ t('about.footerMiddle') }} <a href="https://github.com/nikkiluzader/mapng" target="_blank" class="text-[#FF6600] hover:underline">GitHub</a>
           </p>
         </div>
       </div>
@@ -155,7 +113,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n';
 import { Layers, X, Globe, Grid3X3 } from 'lucide-vue-next';
+
+const { t, tm } = useI18n({ useScope: 'global' });
 
 defineEmits(['close']);
 </script>

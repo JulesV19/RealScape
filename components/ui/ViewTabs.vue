@@ -8,7 +8,7 @@
       @click="$emit('switch-2d')"
     >
       <Globe :size="16" />
-      2D Map
+      {{ t('view.map2d') }}
     </BaseButton>
     <BaseButton
       size="sm"
@@ -19,7 +19,7 @@
       @click="$emit('switch-3d')"
     >
       <Layers :size="16" />
-      3D Preview
+      {{ t('view.preview3d') }}
     </BaseButton>
   </div>
 </template>
@@ -51,8 +51,11 @@
 </style>
 
 <script setup>
+import { useI18n } from 'vue-i18n';
 import BaseButton from '../base/BaseButton.vue';
 import { Globe, Layers } from 'lucide-vue-next';
+
+const { t } = useI18n({ useScope: 'global' });
 
 defineProps({
   previewMode: { type: Boolean, default: false },

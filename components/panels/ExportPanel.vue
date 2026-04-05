@@ -4,13 +4,13 @@
     <div v-if="!terrainData.osmFeatures || terrainData.osmFeatures.length === 0" class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-100 dark:border-blue-800 flex items-center justify-between">
       <div class="text-[10px] text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
         <Trees :size="12" />
-        <span>OSM Data missing</span>
+        <span>{{ t('exportPanel.osmMissing') }}</span>
       </div>
       <button 
         @click="$emit('fetchOsm')"
         class="text-[10px] font-medium bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
       >
-        Fetch Now
+        {{ t('exportPanel.fetchNow') }}
       </button>
     </div>
 
@@ -20,7 +20,7 @@
     >
       <span class="flex items-center gap-2">
         <Download :size="16" />
-        Ready to Export
+        {{ t('exportPanel.readyToExport') }}
         <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">{{ terrainData.width }}x{{ terrainData.height }}</span>
       </span>
       <ChevronDown :size="14" :class="['transition-transform duration-200', showExports ? 'rotate-180' : '']" />
@@ -34,103 +34,103 @@
           class="w-full flex items-center justify-between group"
         >
           <div class="flex items-center gap-1.5">
-            <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">BeamNG Level</h4>
-            <span class="text-[8px] uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold">Experimental</span>
+            <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">{{ t('exportPanel.beamngLevel') }}</h4>
+            <span class="text-[8px] uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold">{{ t('exportPanel.experimental') }}</span>
           </div>
           <ChevronDown :size="12" :class="['text-gray-400 dark:text-gray-500 transition-transform duration-200', showExportBeamNG ? 'rotate-180' : '']" />
         </button>
         <div v-if="showExportBeamNG" class="space-y-1.5">
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Level Name</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.levelName') }}</span>
             <input
               v-model="beamNGLevelName"
               @input="handleBeamNGLevelNameInput"
               type="text"
               maxlength="64"
-              placeholder="Suggested from map center"
+              :placeholder="t('exportPanel.levelNamePlaceholder')"
               class="min-w-0 flex-1 text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300"
             />
           </div>
 
           <!-- Base texture selector -->
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Base Texture</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.baseTexture') }}</span>
             <select v-model="beamNGBaseTexture" class="text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300 cursor-pointer">
-              <option value="hybrid" :disabled="!terrainData?.hybridTextureUrl && !terrainData?.hybridTextureCanvas">Hybrid</option>
-              <option value="satellite" :disabled="!terrainData?.satelliteTextureUrl">Satellite</option>
-              <option value="osm" :disabled="!terrainData?.osmTextureUrl">OSM</option>
-              <option value="segmented" :disabled="!terrainData?.segmentedTextureUrl">Segmented</option>
-              <option value="segmentedHybrid" :disabled="!terrainData?.segmentedHybridTextureUrl">Seg. Hybrid</option>
+              <option value="hybrid" :disabled="!terrainData?.hybridTextureUrl && !terrainData?.hybridTextureCanvas">{{ t('exportPanel.satelliteHybrid') }}</option>
+              <option value="satellite" :disabled="!terrainData?.satelliteTextureUrl">{{ t('exportPanel.satellite') }}</option>
+              <option value="osm" :disabled="!terrainData?.osmTextureUrl">{{ t('exportPanel.osm') }}</option>
+              <option value="segmented" :disabled="!terrainData?.segmentedTextureUrl">{{ t('exportPanel.segmented') }}</option>
+              <option value="segmentedHybrid" :disabled="!terrainData?.segmentedHybridTextureUrl">{{ t('exportPanel.segmentedHybridShort') }}</option>
             </select>
           </div>
 
           <!-- PBR terrain materials source selector -->
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">PBR Materials</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.pbrMaterials') }}</span>
             <select v-model="beamNGPbrSource" class="text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300 cursor-pointer">
-              <option value="none">Off</option>
-              <option value="osm">OSM data</option>
-              <option value="image" :disabled="!terrainData?.segmentedHybridTextureUrl && !terrainData?.segmentedHybridTextureCanvas">Segmented hybrid</option>
+              <option value="none">{{ t('exportPanel.off') }}</option>
+              <option value="osm">{{ t('exportPanel.osmData') }}</option>
+              <option value="image" :disabled="!terrainData?.segmentedHybridTextureUrl && !terrainData?.segmentedHybridTextureCanvas">{{ t('exportPanel.segmentedHybrid') }}</option>
             </select>
           </div>
 
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Flavor</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.flavor') }}</span>
             <select v-model="beamNGFlavorId" class="min-w-0 text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300 cursor-pointer">
-              <option value="">Select level</option>
+              <option value="">{{ t('exportPanel.selectLevel') }}</option>
               <option v-for="flavor in beamNGFlavorOptions" :key="flavor.id" :value="flavor.id">
                 {{ flavor.label }}
               </option>
             </select>
           </div>
           <div v-if="!beamNGFlavorId" class="px-0.5 text-[9px] text-amber-600 dark:text-amber-400">
-            Choose a BeamNG level flavor before exporting.
+            {{ t('exportPanel.chooseFlavor') }}
           </div>
 
           <!-- Surrounding terrain backdrop toggle -->
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Include Backdrop</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.includeBackdrop') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" v-model="beamNGIncludeBackdrop" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Surrounding terrain</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.surroundingTerrain') }}</span>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Include Buildings</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.includeBuildings') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" v-model="beamNGIncludeBuildings" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Export 3D OSM buildings</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.exportBuildings') }}</span>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Apply Foundations</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.applyFoundations') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" v-model="beamNGApplyFoundations" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Raise terrain under steep buildings</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.raiseUnderBuildings') }}</span>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Water</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.water') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" v-model="beamNGIncludeWater" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Lakes and rivers</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.lakesRivers') }}</span>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Trees/Bushes</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.treesBushes') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" v-model="beamNGIncludeTrees" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Native forest items</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.nativeForest') }}</span>
             </label>
           </div>
 
           <div class="px-0.5 space-y-1" :class="beamNGIncludeTrees ? '' : 'opacity-50'">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Tree Density</span>
+              <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.treeDensity') }}</span>
               <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ beamNGTreeDensity.toFixed(1) }}x</span>
             </div>
             <input
@@ -143,15 +143,15 @@
               class="w-full h-1.5 accent-[#FF6600] cursor-pointer disabled:cursor-not-allowed"
             />
             <p v-if="beamNGIncludeTrees && beamNGTreeDensity >= 5" class="text-[9px] text-amber-600 dark:text-amber-400">
-              Experimental above 5x: very dense forests can increase export time and memory usage.
+              {{ t('exportPanel.experimentalTreeDensity') }}
             </p>
           </div>
 
           <div class="flex items-center justify-between gap-2 px-0.5">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">Rocks</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.rocks') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" v-model="beamNGIncludeRocks" class="rounded border-gray-300 dark:border-gray-600 text-[#FF6600] cursor-pointer" />
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Quarry/rock cover</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.quarryRock') }}</span>
             </label>
           </div>
 
@@ -166,8 +166,8 @@
               <PackageOpen v-else :size="20" class="text-white/90" />
             </div>
             <div class="text-left">
-              <div class="text-[12px] font-semibold">BeamNG Level Export</div>
-              <div class="text-[10px] text-white/90">Generate playable .zip package</div>
+              <div class="text-[12px] font-semibold">{{ t('exportPanel.beamngLevelExport') }}</div>
+              <div class="text-[10px] text-white/90">{{ t('exportPanel.generatePlayableZip') }}</div>
             </div>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-70 group-hover:opacity-100 transition-opacity text-white" />
           </button>
@@ -180,7 +180,7 @@
           @click="showExport2D = !showExport2D"
           class="w-full flex items-center justify-between group"
         >
-          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">2D Assets</h4>
+          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">{{ t('exportPanel.assets2d') }}</h4>
           <ChevronDown :size="12" :class="['text-gray-400 dark:text-gray-500 transition-transform duration-200', showExport2D ? 'rotate-180' : '']" />
         </button>
         <div v-if="showExport2D" class="grid grid-cols-2 gap-1.5">
@@ -195,7 +195,7 @@
               <img v-else-if="heightmapPreviewUrl" :src="heightmapPreviewUrl" class="w-full h-full object-cover" />
               <Mountain v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">Heightmap</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.heightmap') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px 16-bit grayscale PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -211,7 +211,7 @@
               <img v-else-if="terrainData.satelliteTextureUrl" :src="terrainData.satelliteTextureUrl" class="w-full h-full object-cover" />
               <Box v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">Satellite</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.satellite') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -227,7 +227,7 @@
               <img v-else-if="terrainData.osmTextureUrl" :src="terrainData.osmTextureUrl" class="w-full h-full object-cover" />
               <Trees v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">OSM Texture</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.osmTexture') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -243,7 +243,7 @@
               <img v-else-if="terrainData.hybridTextureUrl" :src="terrainData.hybridTextureUrl" class="w-full h-full object-cover" />
               <Layers v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">Satellite Hybrid</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.satelliteHybrid') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -259,7 +259,7 @@
               <img v-else-if="terrainData.segmentedTextureUrl" :src="terrainData.segmentedTextureUrl" class="w-full h-full object-cover" />
               <Paintbrush v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">Segmented</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.segmented') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -275,7 +275,7 @@
               <img v-else-if="terrainData.segmentedHybridTextureUrl" :src="terrainData.segmentedHybridTextureUrl" class="w-full h-full object-cover" />
               <Paintbrush v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">Seg. Hybrid</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.segmentedHybridShort') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -291,7 +291,7 @@
               <img v-else-if="roadMaskPreviewUrl" :src="roadMaskPreviewUrl" class="w-full h-full object-cover" />
               <Route v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">Road Mask</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.roadMask') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData.width }}px 16-bit grayscale PNG</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -304,7 +304,7 @@
           @click="showExport3D = !showExport3D"
           class="w-full flex items-center justify-between group"
         >
-          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">3D Models</h4>
+          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">{{ t('exportPanel.models3d') }}</h4>
           <ChevronDown :size="12" :class="['text-gray-400 dark:text-gray-500 transition-transform duration-200', showExport3D ? 'rotate-180' : '']" />
         </button>
 
@@ -312,29 +312,29 @@
           <!-- Shared 3D options -->
           <div class="space-y-2 px-2 py-2 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600">
             <div class="flex items-center gap-1.5">
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Center Texture:</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.centerTexture') }}</span>
               <select v-model="modelCenterTextureType" class="text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300 cursor-pointer">
-                <option value="satellite">Satellite</option>
-                <option value="osm" :disabled="!terrainData?.osmTextureUrl">OSM</option>
-                <option value="hybrid" :disabled="!terrainData?.hybridTextureUrl">Hybrid</option>
-                <option value="segmented" :disabled="!terrainData?.segmentedTextureUrl">Segmented</option>
-                <option value="segmentedHybrid" :disabled="!terrainData?.segmentedHybridTextureUrl">Seg. Hybrid</option>
-                <option value="none">None</option>
+                <option value="satellite">{{ t('exportPanel.satellite') }}</option>
+                <option value="osm" :disabled="!terrainData?.osmTextureUrl">{{ t('exportPanel.osm') }}</option>
+                <option value="hybrid" :disabled="!terrainData?.hybridTextureUrl">{{ t('exportPanel.hybrid') }}</option>
+                <option value="segmented" :disabled="!terrainData?.segmentedTextureUrl">{{ t('exportPanel.segmented') }}</option>
+                <option value="segmentedHybrid" :disabled="!terrainData?.segmentedHybridTextureUrl">{{ t('exportPanel.segmentedHybridShort') }}</option>
+                <option value="none">{{ t('exportPanel.none') }}</option>
               </select>
             </div>
             <div class="flex items-center gap-2 flex-nowrap overflow-x-auto whitespace-nowrap pb-0.5">
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">Tiles:</span>
+              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.tiles') }}</span>
               <label class="flex items-center gap-1 cursor-pointer">
                 <input type="radio" v-model="modelTileSelection" value="center-only" class="accent-[#FF6600] w-3 h-3" />
-                <span class="text-[9px] text-gray-500 dark:text-gray-400">Center</span>
+                <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.center') }}</span>
               </label>
               <label class="flex items-center gap-1 cursor-pointer">
                 <input type="radio" v-model="modelTileSelection" value="center-plus-surroundings" class="accent-[#FF6600] w-3 h-3" />
-                <span class="text-[9px] text-gray-500 dark:text-gray-400">Center + Surroundings</span>
+                <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.centerPlusSurroundings') }}</span>
               </label>
               <label class="flex items-center gap-1 cursor-pointer">
                 <input type="radio" v-model="modelTileSelection" value="surroundings-only" class="accent-[#FF6600] w-3 h-3" />
-                <span class="text-[9px] text-gray-500 dark:text-gray-400">Surroundings Only</span>
+                <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.surroundingsOnly') }}</span>
               </label>
             </div>
           </div>
@@ -350,7 +350,7 @@
                 <Loader2 v-if="isExportingGLB" :size="20" class="animate-spin text-[#FF6600]" />
                 <Box v-else :size="24" class="text-gray-400 dark:text-gray-500" />
               </div>
-              <span class="text-[11px] font-medium">GLB Model</span>
+              <span class="text-[11px] font-medium">{{ t('exportPanel.glbModel') }}</span>
               <span class="text-[10px] text-gray-500 dark:text-gray-400">.glb binary</span>
               <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
             </button>
@@ -365,7 +365,7 @@
                 <Loader2 v-if="isExportingDAE" :size="20" class="animate-spin text-[#FF6600]" />
                 <FileCode v-else :size="24" class="text-gray-400 dark:text-gray-500" />
               </div>
-              <span class="text-[11px] font-medium">Collada DAE</span>
+              <span class="text-[11px] font-medium">{{ t('exportPanel.colladaDae') }}</span>
               <span class="text-[10px] text-gray-500 dark:text-gray-400">.dae + textures</span>
               <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
             </button>
@@ -380,7 +380,7 @@
                 <Loader2 v-if="isExportingTER" :size="20" class="animate-spin text-[#FF6600]" />
                 <FileCode v-else :size="24" class="text-gray-400 dark:text-gray-500" />
               </div>
-              <span class="text-[11px] font-medium">BeamNG Terrain</span>
+              <span class="text-[11px] font-medium">{{ t('exportPanel.beamngTerrain') }}</span>
               <span class="text-[10px] text-gray-500 dark:text-gray-400">.ter heightmap</span>
               <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
             </button>
@@ -394,7 +394,7 @@
           @click="showExportGeo = !showExportGeo"
           class="w-full flex items-center justify-between group"
         >
-          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">Geo Data</h4>
+          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 group-hover:text-[#FF6600] transition-colors">{{ t('exportPanel.geoData') }}</h4>
           <ChevronDown :size="12" :class="['text-gray-400 dark:text-gray-500 transition-transform duration-200', showExportGeo ? 'rotate-180' : '']" />
         </button>
         <div v-if="showExportGeo" class="grid grid-cols-2 gap-1.5">
@@ -408,7 +408,7 @@
               <Loader2 v-if="isExportingGeoTIFF" :size="20" class="animate-spin text-[#FF6600]" />
               <FileCode v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">GeoTIFF</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.geoTiff') }}</span>
             <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ terrainData?.sourceGeoTiffs ? terrainData.sourceGeoTiffs.source.toUpperCase() : 'WGS84' }}</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
@@ -423,8 +423,8 @@
               <Loader2 v-if="isExportingOSM" :size="20" class="animate-spin text-[#FF6600]" />
               <FileJson v-else :size="24" class="text-gray-400 dark:text-gray-500" />
             </div>
-            <span class="text-[11px] font-medium">GeoJSON</span>
-            <span class="text-[10px] text-gray-500 dark:text-gray-400">OSM vectors</span>
+            <span class="text-[11px] font-medium">{{ t('exportPanel.geoJson') }}</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.osmVectors') }}</span>
             <Download v-if="!isAnyExporting" :size="10" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF6600]" />
           </button>
         </div>
@@ -444,8 +444,8 @@
           <div class="flex items-center gap-3">
             <Loader2 :size="20" class="animate-spin text-[#FF6600] shrink-0" />
             <div>
-              <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Exporting BeamNG Level</div>
-              <div class="text-[11px] text-gray-500 dark:text-gray-400">This may take a while for large maps</div>
+              <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ t('exportPanel.exportingBeamng') }}</div>
+              <div class="text-[11px] text-gray-500 dark:text-gray-400">{{ t('exportPanel.mayTakeWhile') }}</div>
             </div>
           </div>
 
@@ -481,6 +481,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   Download, ChevronDown, Loader2, Mountain, Box, Trees, Layers, Paintbrush, Route, FileCode, FileJson, PackageOpen
 } from 'lucide-vue-next';
@@ -494,6 +495,8 @@ import { exportBeamNGLevel } from '../../services/exportBeamNGLevel';
 import { prepareCroppedTerrainData } from '../../services/cropTerrain';
 import { getBeamNGFlavorOptions } from '../../services/beamngFlavorCatalog.js';
 import { reverseLocationName } from '../../services/nominatim';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   terrainData: { type: Object, default: null },
@@ -848,7 +851,7 @@ const downloadHeightmap = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export heightmap:', error);
-    alert('Failed to export heightmap. See console for details.');
+    alert(t('export.errorHeightmap'));
   } finally {
     isExportingHeightmap.value = false;
   }
@@ -867,7 +870,7 @@ const downloadTexture = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export texture:', error);
-    alert('Failed to export texture. See console for details.');
+    alert(t('export.errorTexture'));
   } finally {
     isExportingTexture.value = false;
   }
@@ -885,7 +888,7 @@ const downloadOSMTexture = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export OSM texture:', error);
-    alert('Failed to export OSM texture. See console for details.');
+    alert(t('export.errorOsmTexture'));
   } finally {
     isExportingOSMTexture.value = false;
   }
@@ -903,7 +906,7 @@ const downloadHybridTexture = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export hybrid texture:', error);
-    alert('Failed to export hybrid texture. See console for details.');
+    alert(t('export.errorHybridTexture'));
   } finally {
     isExportingHybridTexture.value = false;
   }
@@ -921,7 +924,7 @@ const downloadSegmentedTexture = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export segmented texture:', error);
-    alert('Failed to export segmented texture. See console for details.');
+    alert(t('export.errorSegmentedTexture'));
   } finally {
     isExportingSegmentedTexture.value = false;
   }
@@ -939,7 +942,7 @@ const downloadSegmentedHybridTexture = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export segmented hybrid texture:', error);
-    alert('Failed to export segmented hybrid texture. See console for details.');
+    alert(t('export.errorSegmentedHybridTexture'));
   } finally {
     isExportingSegmentedHybridTexture.value = false;
   }
@@ -984,7 +987,7 @@ const downloadRoadMask = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export road mask:', error);
-    alert('Failed to export road mask. See console for details.');
+    alert(t('export.errorRoadMask'));
   } finally {
     isExportingRoadMask.value = false;
   }
@@ -1003,7 +1006,7 @@ const downloadGeoTIFF = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export GeoTIFF:', error);
-    alert('Failed to export GeoTIFF. See console for details.');
+    alert(t('export.errorGeotiff'));
   } finally {
     isExportingGeoTIFF.value = false;
   }
@@ -1108,7 +1111,7 @@ const handleGLBExport = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export GLB:', error);
-    alert('Failed to export GLB. See console for details.');
+    alert(t('export.errorGlb'));
   } finally {
     isExportingGLB.value = false;
   }
@@ -1140,7 +1143,7 @@ const handleDAEExport = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export DAE:', error);
-    alert('Failed to export DAE. See console for details.');
+    alert(t('export.errorDae'));
   } finally {
     isExportingDAE.value = false;
   }
@@ -1177,7 +1180,7 @@ const handleBeamNGLevelExport = async () => {
     triggerDownload(blob, filename);
   } catch (error) {
     console.error('Failed to export BeamNG level:', error);
-    alert('Failed to export BeamNG level. See console for details.');
+    alert(t('export.errorBeamngLevel'));
   } finally {
     isExportingBeamNGLevel.value = false;
     beamNGProgressStep.value = '';
@@ -1216,7 +1219,7 @@ const handleTERExport = async () => {
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
     console.error('Failed to export TER:', error);
-    alert('Failed to export TER. See console for details.');
+    alert(t('export.errorTer'));
   } finally {
     isExportingTER.value = false;
   }

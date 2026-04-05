@@ -78,10 +78,10 @@
         'absolute top-4 z-40 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-r-lg shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5 px-2 py-2',
         showSceneSettings ? 'left-64' : 'left-0'
       ]"
-      :title="showSceneSettings ? 'Hide Scene Settings' : 'Show Scene Settings'"
+      :title="showSceneSettings ? t('preview.hideSettings') : t('preview.showSettings')"
     >
       <component :is="showSceneSettings ? ChevronLeft : ChevronRight" :size="14" class="text-[#FF6600]" />
-      <span v-if="!showSceneSettings" class="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Scene Settings</span>
+      <span v-if="!showSceneSettings" class="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ t('preview.sceneSettings') }}</span>
     </button>
 
     <!-- Scene Controls Slide-out Panel -->
@@ -95,13 +95,13 @@
         class="flex items-center gap-2 text-gray-900 dark:text-white mb-3 border-b border-gray-200 dark:border-gray-700 pb-2"
       >
         <Settings :size="16" class="text-[#FF6600]" />
-        <span class="text-sm font-bold">Scene Settings</span>
+        <span class="text-sm font-bold">{{ t('preview.sceneSettings') }}</span>
       </div>
 
       <!-- Quality Selector -->
       <div class="mb-4 space-y-2">
         <label class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-          <Gauge :size="12" /> Mesh Quality
+          <Gauge :size="12" /> {{ t('preview.meshQuality') }}
         </label>
         <div class="flex bg-gray-100 dark:bg-gray-800 rounded-md p-1 border border-gray-200 dark:border-gray-700">
           <button
@@ -121,10 +121,10 @@
         <p class="text-[10px] text-gray-400 dark:text-gray-500 text-right">
           {{
             quality === "low"
-              ? "Low poly"
+              ? t('preview.qualityLow')
               : quality === "medium"
-                ? "Balanced"
-                : "Max Safe Detail"
+                ? t('preview.qualityBalanced')
+                : t('preview.qualityMaxSafe')
           }}
         </p>
       </div>
@@ -132,7 +132,7 @@
       <!-- Environment Selector -->
       <div class="space-y-2 mb-4">
         <label class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-          <Settings :size="12" /> Environment
+          <Settings :size="12" /> {{ t('preview.environment') }}
         </label>
         <select
           v-model="preset"
@@ -144,7 +144,7 @@
 
       <div class="space-y-2 mb-4">
         <label class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-          <Settings :size="12" /> Sun Positioning
+          <Settings :size="12" /> {{ t('preview.sunPositioning') }}
         </label>
         <select
           v-model="sunPosition"
@@ -157,7 +157,7 @@
       <!-- Overlays -->
       <div class="space-y-2">
         <label class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-          <Layers :size="12" /> Texture Mode
+          <Layers :size="12" /> {{ t('preview.textureMode') }}
         </label>
 
         <div
@@ -172,15 +172,15 @@
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700',
             ]"
           >
-            Satellite
+            {{ t('preview.satellite') }}
           </button>
           <button
             @click="textureType = 'osm'"
             :disabled="!terrainData.osmTextureUrl"
             :title="
               !terrainData.osmTextureUrl
-                ? 'No OSM data available'
-                : 'Show OSM Layer'
+                ? t('preview.noOsmData')
+                : t('preview.showOsmLayer')
             "
             :class="[
               'flex-1 text-xs py-1.5 rounded transition-colors',
@@ -191,15 +191,15 @@
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700',
             ]"
           >
-            OSM
+            {{ t('preview.osm') }}
           </button>
           <button
             @click="textureType = 'hybrid'"
             :disabled="!terrainData.hybridTextureUrl"
             :title="
               !terrainData.hybridTextureUrl
-                ? 'No Hybrid data available'
-                : 'Show Hybrid Layer'
+                ? t('preview.noHybridData')
+                : t('preview.showHybridLayer')
             "
             :class="[
               'flex-1 text-xs py-1.5 rounded transition-colors',
@@ -210,7 +210,7 @@
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700',
             ]"
           >
-            Hybrid
+            {{ t('preview.hybrid') }}
           </button>
           <button
             @click="textureType = 'none'"
@@ -221,7 +221,7 @@
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700',
             ]"
           >
-            None
+            {{ t('preview.none') }}
           </button>
         </div>
 
@@ -232,7 +232,7 @@
           <button
             @click="textureType = 'segmented'"
             :disabled="!mergedTerrainData.segmentedTextureUrl"
-            :title="!mergedTerrainData.segmentedTextureUrl ? 'No segmented data available' : 'Segmented satellite (flat color blobs)'"
+            :title="!mergedTerrainData.segmentedTextureUrl ? t('preview.noSegmented') : t('preview.segmentedTip')"
             :class="[
               'flex-1 text-xs py-1.5 rounded transition-colors',
               textureType === 'segmented'
@@ -242,12 +242,12 @@
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700',
             ]"
           >
-            Segmented
+            {{ t('preview.segmented') }}
           </button>
           <button
             @click="textureType = 'segmentedHybrid'"
             :disabled="!mergedTerrainData.segmentedHybridTextureUrl"
-            :title="!mergedTerrainData.segmentedHybridTextureUrl ? 'No segmented hybrid data available' : 'Segmented satellite + roads overlay'"
+            :title="!mergedTerrainData.segmentedHybridTextureUrl ? t('preview.noSegmentedHybrid') : t('preview.segmentedHybridTip')"
             :class="[
               'flex-1 text-xs py-1.5 rounded transition-colors',
               textureType === 'segmentedHybrid'
@@ -257,20 +257,20 @@
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700',
             ]"
           >
-            Seg. Hybrid
+            {{ t('preview.segmentedHybrid') }}
           </button>
         </div>
 
         <!-- wireframe and 3D features -->
         <div class="space-y-3 pt-2">
           <div>
-            <label class="text-[10px] text-gray-400 dark:text-gray-500 block mb-1">Surroundings Texture</label>
+            <label class="text-[10px] text-gray-400 dark:text-gray-500 block mb-1">{{ t('preview.surroundingsTexture') }}</label>
             <select
               v-model="surroundingTextureType"
               class="w-full max-w-[140px] appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-[10px] rounded py-1 px-2 focus:ring-1 focus:ring-[#FF6600] outline-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <option value="satellite">Satellite</option>
-              <option value="none">None</option>
+              <option value="satellite">{{ t('preview.satellite') }}</option>
+              <option value="none">{{ t('preview.none') }}</option>
             </select>
           </div>
 
@@ -286,10 +286,10 @@
               ></div>
             </div>
             <span class="text-xs text-gray-700 dark:text-gray-300 group-hover/check:text-gray-900 dark:group-hover/check:text-white"
-              >Surrounding Terrain</span
+              >{{ t('preview.surroundingTerrain') }}</span
             >
           </label>
-          <p v-if="showSurroundings" class="text-[10px] text-gray-400 dark:text-gray-500 ml-11 -mt-1">Adaptive adjacent tiles with seam blending and preview-optimized satellite detail for faster loading.</p>
+          <p v-if="showSurroundings" class="text-[10px] text-gray-400 dark:text-gray-500 ml-11 -mt-1">{{ t('preview.surroundingDesc') }}</p>
           <p
             v-if="showSurroundings && surroundingTextureType === 'satellite' && isSurroundingsLoading"
             class="text-[10px] text-gray-400 dark:text-gray-500 ml-11 -mt-1"
@@ -309,13 +309,13 @@
               ></div>
             </div>
             <span class="text-xs text-gray-700 dark:text-gray-300 group-hover/check:text-gray-900 dark:group-hover/check:text-white"
-              >Wireframe Mode</span
+              >{{ t('preview.wireframeMode') }}</span
             >
           </label>
 
           <div class="space-y-2">
             <label class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 font-medium mb-1">
-              <Layers :size="12" /> 3D Features
+              <Layers :size="12" /> {{ t('preview.features3d') }}
             </label>
             <div class="grid grid-cols-2 gap-2">
               <label v-for="(val, key) in featureVisibility" :key="key" class="flex items-center gap-2 cursor-pointer group/check">
@@ -343,7 +343,7 @@
             class="w-full flex items-center justify-center gap-2 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-black dark:hover:bg-gray-600 text-white text-xs font-bold rounded-md transition-colors shadow-lg shadow-black/10"
           >
             <RotateCcw :size="14" />
-            Reset Camera
+            {{ t('preview.resetCamera') }}
           </button>
         </div>
       </div>
@@ -354,6 +354,7 @@
 
 <script setup>
 import { ref, computed, reactive } from "vue";
+import { useI18n } from 'vue-i18n';
 import * as THREE from "three";
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls, Environment } from "@tresjs/cientos";
@@ -365,6 +366,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-vue-next";
+
+const { t } = useI18n({ useScope: 'global' });
 import TerrainMesh from "./TerrainMesh.vue";
 import MapngFlag3D from "./MapngFlag3D.vue";
 import OSMFeatures3D from "./OSMFeatures3D.vue";

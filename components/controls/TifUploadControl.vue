@@ -8,50 +8,50 @@
       <!-- LAZ/LAS status -->
       <template v-if="isLazFile">
         <p v-if="uploadedTifMeta?.center" class="text-[11px] text-emerald-600 dark:text-emerald-400">
-          {{ ptLabel }} — coordinates auto-detected
+          {{ ptLabel }} — {{ t('upload.autoDetected') }}
         </p>
         <p v-else-if="uploadedTifMeta" class="text-[11px] text-amber-600 dark:text-amber-400">
-          {{ ptLabel }} — using selected coordinates
+          {{ ptLabel }} — {{ t('upload.usingSelected') }}
         </p>
         <p v-else class="text-[11px] text-blue-500 dark:text-blue-400 animate-pulse">
-          Reading file…
+          {{ t('upload.reading') }}
         </p>
       </template>
 
       <!-- TIF/TIFF status -->
       <template v-else>
         <p v-if="uploadedTifMeta?.isGeoTiff && uploadedTifMeta?.center" class="text-[11px] text-emerald-600 dark:text-emerald-400">
-          GeoTIFF — coordinates auto-detected
+          {{ t('upload.geotiffDetected') }}
         </p>
         <p v-else-if="uploadedTifMeta?.isGeoTiff" class="text-[11px] text-amber-600 dark:text-amber-400">
-          GeoTIFF — CRS unsupported, using selected coordinates
+          {{ t('upload.geotiffUnsupported') }}
         </p>
         <p v-else-if="uploadedTifMeta" class="text-[11px] text-amber-600 dark:text-amber-400">
-          No geo metadata — using selected coordinates
+          {{ t('upload.noGeoMetadata') }}
         </p>
         <p v-else class="text-[11px] text-blue-500 dark:text-blue-400 animate-pulse">
-          Reading file…
+          {{ t('upload.reading') }}
         </p>
       </template>
 
       <div v-if="uploadedTifMeta" class="mt-2 flex items-center gap-2">
-        <label class="text-[10px] text-blue-700 dark:text-blue-300">Elevation units</label>
+        <label class="text-[10px] text-blue-700 dark:text-blue-300">{{ t('upload.elevationUnits') }}</label>
         <select
           :value="verticalUnitOverride"
           @change="$emit('update:verticalUnitOverride', $event.target.value)"
           class="text-[10px] rounded border border-blue-200 dark:border-blue-700 bg-white dark:bg-blue-900/30 px-1.5 py-0.5 text-blue-800 dark:text-blue-200"
         >
-          <option value="auto">Auto ({{ detectedUnitLabel }})</option>
-          <option value="meters">Meters</option>
-          <option value="feet">Feet (international)</option>
-          <option value="us_survey_feet">Feet (US survey)</option>
+          <option value="auto">{{ t('upload.auto') }} ({{ detectedUnitLabel }})</option>
+          <option value="meters">{{ t('upload.meters') }}</option>
+          <option value="feet">{{ t('upload.feetIntl') }}</option>
+          <option value="us_survey_feet">{{ t('upload.feetUs') }}</option>
         </select>
       </div>
     </div>
     <button
       @click="$emit('clear')"
       class="shrink-0 p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-400 hover:text-blue-600 dark:hover:text-blue-200 transition-colors"
-      title="Remove uploaded file"
+      :title="t('upload.removeUploaded')"
     >
       <X :size="14" />
     </button>
@@ -63,7 +63,7 @@
       class="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-[#FF6600] hover:text-[#FF6600] dark:hover:border-[#FF6600] dark:hover:text-[#FF6600] cursor-pointer transition-colors"
     >
       <Upload :size="14" class="shrink-0" />
-      <span>Upload elevation (.tif, .laz, .las)</span>
+      <span>{{ t('upload.uploadElevation') }}</span>
       <input
         ref="fileInput"
         type="file"
@@ -77,7 +77,10 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Upload, FileUp, X } from 'lucide-vue-next';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   uploadedTifFile: { type: Object, default: null },
@@ -95,17 +98,17 @@ const isLazFile = computed(() => {
 
 const ptLabel = computed(() => {
   const count = props.uploadedTifMeta?.pointCount;
-  if (!count) return 'Point cloud';
+  if (!count) return t('upload.pointCloud');
   const m = count / 1_000_000;
   return m >= 1 ? `${m.toFixed(1)}M pts` : `${(count / 1000).toFixed(0)}K pts`;
 });
 
 const detectedUnitLabel = computed(() => {
   const u = props.uploadedTifMeta?.verticalUnitDetected;
-  if (u === 'meters') return 'meters detected';
-  if (u === 'feet') return 'feet detected';
-  if (u === 'us_survey_feet') return 'US survey feet detected';
-  return 'unknown, defaulting to meters';
+  if (u === 'meters') return t('upload.metersDetected');
+  if (u === 'feet') return t('upload.feetDetected');
+  if (u === 'us_survey_feet') return t('upload.usFeetDetected');
+  return t('upload.unknownDefaultMeters');
 });
 
 const handleFileChange = (e) => {

@@ -13,13 +13,13 @@
       </div>
       <div>
         <h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">MapNG</h1>
-        <p class="text-xs text-gray-500 dark:text-gray-400">BeamNG Real-World Terrain Toolkit</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('sidebar.tagline') }}</p>
       </div>
       <BaseButton
         size="sm"
         variant="ghost"
         class="ml-auto text-gray-400 hover:text-[#FF6600] transition-colors p-1 rounded-full hover:bg-orange-50 dark:hover:bg-gray-800"
-        title="What is this?"
+        :title="t('sidebar.aboutTooltip')"
         @click="$emit('show-about')"
       >
         <CircleHelp :size="20" />
@@ -33,39 +33,57 @@
     </div>
 
     <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-700 text-[11px] text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 space-y-1">
+      <div class="flex items-center justify-between gap-2 px-2">
+        <label class="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">{{ t('language.label') }}</label>
+        <select
+          :value="locale"
+          class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-[11px] text-gray-700 dark:text-gray-200"
+          @change="handleLocaleChange"
+        >
+          <option v-for="code in locales" :key="code" :value="code">
+            {{ t(`language.${code}`) }}
+          </option>
+        </select>
+      </div>
       <div class="flex items-center justify-between gap-1">
         <div class="flex items-center gap-1">
-          <BaseButton variant="ghost" size="sm" class="px-2 py-1 text-[11px] font-medium" @click="$emit('show-disclaimer')">Disclaimer</BaseButton>
-          <a href="mailto:nikkiluzader@gmail.com" class="text-[#FF6600] hover:text-[#E65C00] transition-colors px-2 py-1">Contact</a>
+          <BaseButton variant="ghost" size="sm" class="px-2 py-1 text-[11px] font-medium" @click="$emit('show-disclaimer')">{{ t('sidebar.disclaimer') }}</BaseButton>
+          <a href="mailto:nikkiluzader@gmail.com" class="text-[#FF6600] hover:text-[#E65C00] transition-colors px-2 py-1">{{ t('sidebar.contact') }}</a>
           <BaseButton
             variant="ghost"
             size="sm"
             class="text-gray-600 dark:text-gray-400 hover:text-[#FF6600] dark:hover:text-[#FF6600] transition-colors flex items-center gap-1 px-2 py-1"
             @click="$emit('show-stack')"
           >
-            <Code :size="12" /> Stack
+            <Code :size="12" /> {{ t('sidebar.stack') }}
           </BaseButton>
         </div>
         <BaseButton
           variant="secondary"
           size="sm"
           class="p-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
-          :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          :title="isDarkMode ? t('sidebar.switchToLightMode') : t('sidebar.switchToDarkMode')"
           @click="$emit('toggle-dark')"
         >
           <Sun v-if="isDarkMode" :size="14" />
           <Moon v-else :size="14" />
         </BaseButton>
       </div>
-      <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-tight px-2">Build {{ buildHash }} · {{ buildTime }}</span>
+      <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-tight px-2">{{ t('sidebar.build', { hash: buildHash, time: buildTime }) }}</span>
     </div>
   </aside>
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import BaseButton from '../base/BaseButton.vue';
 import ModeToggle from '../ui/ModeToggle.vue';
+import { getSupportedLocales, setI18nLanguage } from '../../i18n';
 import { CircleHelp, Sun, Moon, Code } from 'lucide-vue-next';
+
+const { t, locale } = useI18n({ useScope: 'global' });
+const locales = computed(() => getSupportedLocales());
 
 defineProps({
   batchMode: { type: Boolean, default: false },
@@ -75,4 +93,8 @@ defineProps({
 });
 
 defineEmits(['show-about', 'show-disclaimer', 'show-stack', 'toggle-dark', 'set-batch-mode']);
+
+const handleLocaleChange = (event) => {
+  setI18nLanguage(event.target.value);
+};
 </script>

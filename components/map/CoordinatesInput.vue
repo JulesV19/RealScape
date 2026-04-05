@@ -4,18 +4,18 @@
 
     <div class="grid grid-cols-2 gap-2">
       <div class="space-y-1">
-        <label class="text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1 uppercase tracking-wider">Latitude</label>
+        <label class="text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1 uppercase tracking-wider">{{ t('map.latitude') }}</label>
         <input type="text" v-model="latInput" @change="handleManualLocationChange"
           @paste="handleCoordinatePaste($event)" @keydown.enter="$event.target.blur()"
           class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none"
-          placeholder="Latitude" />
+          :placeholder="t('map.latitude')" />
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1 uppercase tracking-wider">Longitude</label>
+        <label class="text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1 uppercase tracking-wider">{{ t('map.longitude') }}</label>
         <input type="text" v-model="lngInput" @change="handleManualLocationChange"
           @paste="handleCoordinatePaste($event)" @keydown.enter="$event.target.blur()"
           class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none"
-          placeholder="Longitude" />
+          :placeholder="t('map.longitude')" />
       </div>
     </div>
 
@@ -31,7 +31,10 @@
 
 <script setup>
 import { ref, watch, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import LocationSearch from './LocationSearch.vue';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps({
   center: {
@@ -46,7 +49,7 @@ const latInput = ref(props.center.lat.toString());
 const lngInput = ref(props.center.lng.toString());
 
 const presetLocations = [
-  { name: "Select a location...", lat: 0, lng: 0, disabled: true },
+  { name: t('map.selectLocation'), lat: 0, lng: 0, disabled: true },
   { name: "Devils Tower, USA", lat: 44.59056, lng: -104.71511 },
   { name: "Glacier View Car Launch, USA", lat: 61.79551798203474, lng: -147.86878824234012 },
   { name: "Johnson Valley OHV, USA", lat: 34.49523, lng: -116.82180 },

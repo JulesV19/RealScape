@@ -81,7 +81,7 @@
         @dragend="(event) => handleBatchTileDrag(tile, event)"
       >
         <l-tooltip :permanent="false" direction="top" :offset="[0, -8]">
-          Move {{ tile.label || `R${tile.row + 1}C${tile.col + 1}` }}
+          {{ t('mapSelector.moveTile', { label: tile.label || `R${tile.row + 1}C${tile.col + 1}` }) }}
         </l-tooltip>
       </l-marker>
 
@@ -102,25 +102,25 @@
     <div class="absolute bottom-6 right-4 z-[400] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden text-gray-800 dark:text-gray-200 text-xs">
         <div class="bg-gray-50 dark:bg-gray-700 px-3 py-2 border-b border-gray-200 dark:border-gray-600 font-medium flex items-center gap-2">
             <Layers :size="14" class="text-[#FF6600]" />
-            Map Layers
+          {{ t('mapSelector.mapLayers') }}
         </div>
         <div class="p-2 space-y-1">
             <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
                 <input type="radio" v-model="selectedLayer" value="osm" class="accent-[#FF6600]" />
-                <span>OpenStreetMap</span>
+            <span>{{ t('mapSelector.openStreetMap') }}</span>
             </label>
             <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
                 <input type="radio" v-model="selectedLayer" value="satellite" class="accent-[#FF6600]" />
-                <span>Satellite</span>
+            <span>{{ t('mapSelector.satellite') }}</span>
             </label>
             <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
                 <input type="radio" v-model="selectedLayer" value="topo" class="accent-[#FF6600]" />
-                <span>Topo Map</span>
+            <span>{{ t('mapSelector.topoMap') }}</span>
             </label>
             <div class="h-px bg-gray-100 dark:bg-gray-600 my-1"></div>
             <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
                 <input type="checkbox" v-model="showLabels" class="accent-[#FF6600]" />
-                <span>Show Labels</span>
+            <span>{{ t('mapSelector.showLabels') }}</span>
             </label>
         </div>
     </div>
@@ -140,6 +140,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { LMap, LTileLayer, LRectangle, LMarker, LTooltip } from '@vue-leaflet/vue-leaflet';
 import { Layers } from 'lucide-vue-next';
 import L from 'leaflet';
@@ -157,6 +158,7 @@ L.Icon.Default.mergeOptions({
 
 // Static options to prevent reactivity issues
 const mapOptions = { scrollWheelZoom: true };
+const { t } = useI18n({ useScope: 'global' });
 
 
 const props = defineProps({
