@@ -757,6 +757,9 @@ export const fetchTerrainData = async (
   );
 
   let completed = 0;
+  let terrainTilesRequested = 0;
+  let terrainTilesSucceeded = 0;
+  let terrainTilesFailed = 0;
   await pMap(
     requests,
     async ({ tx, ty, type }) => {
@@ -767,6 +770,7 @@ export const fetchTerrainData = async (
         );
       }
       if (type === "terrain") {
+        terrainTilesRequested++;
         const drawX = (tx - minTileX) * TILE_SIZE;
         const drawY = (ty - minTileY) * TILE_SIZE;
 
@@ -775,8 +779,11 @@ export const fetchTerrainData = async (
 
         const terrainUrl = `${TILE_API_URL}/${TERRAIN_ZOOM}/${wrappedTx}/${ty}.png`;
         const tImg = await loadImage(terrainUrl, signal);
-        if (tImg) tCtx.drawImage(tImg, drawX, drawY);
-        else {
+        if (tImg) {
+          terrainTilesSucceeded++;
+          tCtx.drawImage(tImg, drawX, drawY);
+        } else {
+          terrainTilesFailed++;
           tCtx.fillStyle = "black";
           tCtx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
         }
@@ -799,6 +806,12 @@ export const fetchTerrainData = async (
     Math.max(1, Number(globalTileConcurrency || 20)),
     signal,
   );
+
+  if (!rawData && terrainTilesRequested > 0 && terrainTilesSucceeded === 0) {
+    throw new Error(
+      `Failed to download elevation terrain tiles (${terrainTilesFailed}/${terrainTilesRequested} failed). Please retry or switch elevation source.`
+    );
+  }
 
   // Create Samplers from Canvases
   // Always create the terrain data image so we have a fallback sampler

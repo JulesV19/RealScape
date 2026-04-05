@@ -98,10 +98,11 @@ function geoToWorld(lat, lng, terrainData, squareSize, zOffset = 3) {
   const r1 = Math.min(height - 1, r0 + 1);
   const tx = fx - c0;
   const ty = fy - r0;
-  const h00 = heightMap[r0 * width + c0];
-  const h10 = heightMap[r0 * width + c1];
-  const h01 = heightMap[r1 * width + c0];
-  const h11 = heightMap[r1 * width + c1];
+  const sanitizeHeight = (h) => (Number.isFinite(h) && h > -10000 ? h : minHeight);
+  const h00 = sanitizeHeight(heightMap[r0 * width + c0]);
+  const h10 = sanitizeHeight(heightMap[r0 * width + c1]);
+  const h01 = sanitizeHeight(heightMap[r1 * width + c0]);
+  const h11 = sanitizeHeight(heightMap[r1 * width + c1]);
   const worldH = (h00 * (1 - tx) * (1 - ty) + h10 * tx * (1 - ty) + h01 * (1 - tx) * ty + h11 * tx * ty) - minHeight;
 
   // X = east, Y = north (BeamNG convention)
@@ -938,6 +939,37 @@ function resolveElevationSourceLabel(terrainData, selectedElevationSource) {
   return 'Default/WGS84';
 }
 
+function summarizeTerrainSamples(terrainData) {
+  const heightMap = terrainData?.heightMap;
+  if (!heightMap || typeof heightMap.length !== 'number') {
+    return {
+      total: 0,
+      valid: 0,
+      noData: 0,
+      noDataRatio: NaN,
+      allInvalid: false,
+    };
+  }
+
+  let valid = 0;
+  let noData = 0;
+  for (let i = 0; i < heightMap.length; i++) {
+    const h = heightMap[i];
+    if (Number.isFinite(h) && h > -10000) valid += 1;
+    else noData += 1;
+  }
+
+  const total = valid + noData;
+  const noDataRatio = total > 0 ? noData / total : NaN;
+  return {
+    total,
+    valid,
+    noData,
+    noDataRatio,
+    allInvalid: total > 0 && valid === 0,
+  };
+}
+
 function buildBeamNGExportReport({
   terrainData,
   originalTerrainData,
@@ -970,6 +1002,7 @@ function buildBeamNGExportReport({
   const totalAreaM2 = worldSize * worldSize;
   const bounds = terrainData?.bounds ?? {};
   const selectedResolution = Number(options?.requestedResolution);
+  const terrainSampleSummary = summarizeTerrainSamples(terrainData);
   const osmSummary = summarizeOsmFeatures(terrainData?.osmFeatures);
   const originalOsmSummary = summarizeOsmFeatures(originalTerrainData?.osmFeatures);
   const forestPlacementCount = Array.from(forestPlacements.values()).reduce((sum, placements) => sum + placements.length, 0);
@@ -1003,6 +1036,9 @@ function buildBeamNGExportReport({
     `- Elevation source used: ${resolveElevationSourceLabel(originalTerrainData, options?.elevationSource)}`,
     `- Source GeoTIFF source: ${originalTerrainData?.sourceGeoTiffs?.source ? String(originalTerrainData.sourceGeoTiffs.source).toUpperCase() : 'n/a'}`,
     `- Cropped to square for BeamNG: ${formatBool(didCropToSquare)}`,
+    `- Terrain samples (valid/no-data/total): ${terrainSampleSummary.valid}/${terrainSampleSummary.noData}/${terrainSampleSummary.total}`,
+    `- Terrain no-data ratio: ${Number.isFinite(terrainSampleSummary.noDataRatio) ? `${formatNumber(terrainSampleSummary.noDataRatio * 100, 2)}%` : 'n/a'}`,
+    `- Terrain sample warning: ${terrainSampleSummary.allInvalid ? 'ALL_ELEVATION_SAMPLES_INVALID (export likely unreliable)' : 'none'}`,
     '',
     'Selected Export Options',
     `- Base texture: ${options?.baseTexture ?? 'n/a'}`,
@@ -1839,7 +1875,9 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   const squareSize = computeSquareSize(exportTerrainData);
   const halfExtent = (size / 2) * squareSize;
   const worldSize = size * squareSize;
-  const maxHeight = Math.ceil(exportTerrainData.maxHeight - exportTerrainData.minHeight);
+  const terrainHeightRange = exportTerrainData.maxHeight - exportTerrainData.minHeight;
+  // BeamNG TerrainBlock behaves poorly with maxHeight <= 0 (collision/road projection artifacts).
+  const maxHeight = Math.max(1, Math.ceil(terrainHeightRange));
 
   const { position: spawnPosition, rotationMatrix: spawnRotationMatrix } =
     findSpawnPosition(exportTerrainData, center, squareSize);
