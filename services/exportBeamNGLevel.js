@@ -449,7 +449,7 @@ async function generateOSMObjectsDAE(terrainData, worldSize) {
  * and returns them in result.textures — these are saved alongside the DAE in
  * art/shapes/textures/ in the level zip.
  *
- * Returns { daeBlob, textureFiles } where textureFiles is the array from
+ * Returns { daeBlob, textureFiles, diagnostics } where textureFiles is the array from
  * ColladaExporter (each entry: { name, ext, data: Uint8Array, directory }).
  * Returns null if no surrounding data could be fetched.
  */
@@ -524,6 +524,7 @@ async function generateTerrainBackdropDAE(terrainData, worldSize) {
   return {
     daeBlob: result.data,
     textureFiles: result.textures ?? [],
+    diagnostics: surroundingGroup.userData?.surroundingDiagnostics ?? null,
   };
 }
 
@@ -993,6 +994,7 @@ function buildBeamNGExportReport({
   osmDaeBlob,
   backdropDaeBlob,
   backdropTextureFiles,
+  backdropDiagnostics,
   mapngFlagFiles,
   didCropToSquare,
 }) {
@@ -1065,19 +1067,43 @@ function buildBeamNGExportReport({
     `- Backdrop DAE written: ${formatBool(!!backdropDaeBlob)}`,
     `- Backdrop textures written: ${backdropTextureFiles.length}`,
     `- MapNG flag asset written: ${formatBool(mapngFlagFiles.length > 0)}`,
-    '',
-    'OSM Analysis',
-    `- Source OSM features before bounds filter: ${originalOsmSummary.total}`,
-    `- OSM features after export filter: ${osmSummary.total}`,
-    `- Roads: ${osmSummary.roads}`,
-    `- Buildings: ${osmSummary.buildings}`,
-    `- Water features: ${osmSummary.water}`,
-    `- Vegetation points/features: ${osmSummary.vegetation}`,
-    `- Landuse features: ${osmSummary.landuse}`,
-    `- Point/line/polygon split: ${osmSummary.points}/${osmSummary.lines}/${osmSummary.polygons}`,
-    '',
-    'Processing Timeline',
   ];
+
+  if (backdropDiagnostics) {
+    reportLines.push('');
+    reportLines.push('Surrounding Backdrop Diagnostics');
+    reportLines.push(`- Requested surrounding tiles: ${backdropDiagnostics.requestedTiles ?? 'n/a'}`);
+    reportLines.push(`- Built surrounding tiles: ${backdropDiagnostics.builtTiles ?? 'n/a'}`);
+    reportLines.push(`- Direct elevation tiles: ${backdropDiagnostics.directTiles ?? 'n/a'}`);
+    reportLines.push(`- Flat-fallback tiles: ${backdropDiagnostics.flatFallbackTiles ?? 'n/a'}`);
+    reportLines.push(`- Skipped tiles: ${backdropDiagnostics.skippedTiles ?? 'n/a'}`);
+    reportLines.push(`- Flat-fallback threshold (no-data ratio): ${Number.isFinite(backdropDiagnostics.maxNoDataRatio) ? `${formatNumber(backdropDiagnostics.maxNoDataRatio * 100, 2)}%` : 'n/a'}`);
+
+    const perTile = backdropDiagnostics.tiles && typeof backdropDiagnostics.tiles === 'object'
+      ? Object.entries(backdropDiagnostics.tiles)
+      : [];
+    for (const [tileKey, tileDiag] of perTile) {
+      const ratioPct = Number.isFinite(tileDiag?.noDataRatio)
+        ? `${formatNumber(tileDiag.noDataRatio * 100, 2)}%`
+        : 'n/a';
+      reportLines.push(
+        `- Tile ${tileKey}: mode=${tileDiag?.mode ?? 'unknown'}, valid=${tileDiag?.validSamples ?? 'n/a'}, no-data=${tileDiag?.noDataSamples ?? 'n/a'}, total=${tileDiag?.totalSamples ?? 'n/a'}, no-data ratio=${ratioPct}`
+      );
+    }
+  }
+
+  reportLines.push('');
+  reportLines.push('OSM Analysis');
+  reportLines.push(`- Source OSM features before bounds filter: ${originalOsmSummary.total}`);
+  reportLines.push(`- OSM features after export filter: ${osmSummary.total}`);
+  reportLines.push(`- Roads: ${osmSummary.roads}`);
+  reportLines.push(`- Buildings: ${osmSummary.buildings}`);
+  reportLines.push(`- Water features: ${osmSummary.water}`);
+  reportLines.push(`- Vegetation points/features: ${osmSummary.vegetation}`);
+  reportLines.push(`- Landuse features: ${osmSummary.landuse}`);
+  reportLines.push(`- Point/line/polygon split: ${osmSummary.points}/${osmSummary.lines}/${osmSummary.polygons}`);
+  reportLines.push('');
+  reportLines.push('Processing Timeline');
 
   for (const entry of processingLog) {
     reportLines.push(`- ${entry.step}: ${formatDurationMs(entry.durationMs)} (${entry.pct}%)`);
@@ -1972,12 +1998,14 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
 
   let backdropDaeBlob = null;
   let backdropTextureFiles = [];
+  let backdropDiagnostics = null;
   if (includeBackdrop) {
     beginStep('Fetching terrain backdrop mesh…', 82);
     await yield_();
     const backdropResult = await generateTerrainBackdropDAE(exportTerrainData, worldSize);
     backdropDaeBlob = backdropResult?.daeBlob ?? null;
     backdropTextureFiles = backdropResult?.textureFiles ?? [];
+    backdropDiagnostics = backdropResult?.diagnostics ?? null;
   }
 
   beginStep('Loading MapNG flag asset…', 85);
@@ -2099,6 +2127,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     osmDaeBlob,
     backdropDaeBlob,
     backdropTextureFiles,
+    backdropDiagnostics,
     mapngFlagFiles,
     didCropToSquare,
   });

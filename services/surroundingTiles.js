@@ -19,6 +19,7 @@ const TILE_SIZE = 256;
 const TILE_API_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium';
 const SATELLITE_API_URL =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile';
+const NO_DATA_VALUE = -99999;
 
 // Position definitions with lat/lng offset multipliers
 // dLat: +1 = north, -1 = south
@@ -87,7 +88,10 @@ export const getAdjacentBounds = (centerBounds, positionKey) => {
  * Decode Terrarium-encoded RGB pixel to elevation in meters.
  * Mapzen/Terrarium encoding: height = R*256 + G + B/256 - 32768
  */
-const terrariumHeight = (r, g, b) => r * 256 + g + b / 256 - 32768;
+const terrariumHeight = (r, g, b) => {
+  const h = r * 256 + g + b / 256 - 32768;
+  return h <= -32760 ? NO_DATA_VALUE : h;
+};
 
 // --- Main Pipeline ---
 
@@ -275,6 +279,32 @@ export const fetchSurroundingTiles = async (
     );
   };
 
+  const sampleTerrainBilinear = (sx, sy) => {
+    const x0 = Math.floor(sx);
+    const y0 = Math.floor(sy);
+    const dx = sx - x0;
+    const dy = sy - y0;
+
+    const h00 = getTerrainHeightAt(x0, y0);
+    const h10 = getTerrainHeightAt(x0 + 1, y0);
+    const h01 = getTerrainHeightAt(x0, y0 + 1);
+    const h11 = getTerrainHeightAt(x0 + 1, y0 + 1);
+
+    if (h00 !== NO_DATA_VALUE && h10 !== NO_DATA_VALUE && h01 !== NO_DATA_VALUE && h11 !== NO_DATA_VALUE) {
+      const top = (1 - dx) * h00 + dx * h10;
+      const bot = (1 - dx) * h01 + dx * h11;
+      return (1 - dy) * top + dy * bot;
+    }
+
+    let sum = 0;
+    let count = 0;
+    if (h00 !== NO_DATA_VALUE) { sum += h00; count++; }
+    if (h10 !== NO_DATA_VALUE) { sum += h10; count++; }
+    if (h01 !== NO_DATA_VALUE) { sum += h01; count++; }
+    if (h11 !== NO_DATA_VALUE) { sum += h11; count++; }
+    return count > 0 ? (sum / count) : NO_DATA_VALUE;
+  };
+
   // 7. Extract per-position data from shared canvases
   const results = {};
   let posIdx = 0;
@@ -298,6 +328,8 @@ export const fetchSurroundingTiles = async (
     // --- Heightmap: bilinear sampling from terrain canvas ---
     const heightMap = new Float32Array(outputWidth * outputHeight);
     let minH = Infinity, maxH = -Infinity;
+    let validSamples = 0;
+    let noDataSamples = 0;
 
     for (let py = 0; py < outputHeight; py++) {
       for (let px = 0; px < outputWidth; px++) {
@@ -308,20 +340,7 @@ export const fetchSurroundingTiles = async (
           const v = (py + 0.5) / outputHeight;
           const sx = terrainSrcX + u * terrainSrcW;
           const sy = terrainSrcY + v * terrainSrcH;
-
-          const x0 = Math.floor(sx);
-          const y0 = Math.floor(sy);
-          const dx = sx - x0;
-          const dy = sy - y0;
-
-          const h00 = getTerrainHeightAt(x0, y0);
-          const h10 = getTerrainHeightAt(x0 + 1, y0);
-          const h01 = getTerrainHeightAt(x0, y0 + 1);
-          const h11 = getTerrainHeightAt(x0 + 1, y0 + 1);
-
-          const top = (1 - dx) * h00 + dx * h10;
-          const bot = (1 - dx) * h01 + dx * h11;
-          elev = (1 - dy) * top + dy * bot;
+          elev = sampleTerrainBilinear(sx, sy);
         } else {
           const u = (px + 0.5) / outputWidth;
           const v = (py + 0.5) / outputHeight;
@@ -331,30 +350,33 @@ export const fetchSurroundingTiles = async (
           const p = project(lat, lng, TERRAIN_ZOOM);
           const lx = p.x - tMinTX * TILE_SIZE;
           const ly = p.y - tMinTY * TILE_SIZE;
-
-          const x0 = Math.floor(lx);
-          const y0 = Math.floor(ly);
-          const dx = lx - x0;
-          const dy = ly - y0;
-
-          const h00 = getTerrainHeightAt(x0, y0);
-          const h10 = getTerrainHeightAt(x0 + 1, y0);
-          const h01 = getTerrainHeightAt(x0, y0 + 1);
-          const h11 = getTerrainHeightAt(x0 + 1, y0 + 1);
-
-          const top = (1 - dx) * h00 + dx * h10;
-          const bot = (1 - dx) * h01 + dx * h11;
-          elev = (1 - dy) * top + dy * bot;
+          elev = sampleTerrainBilinear(lx, ly);
         }
 
         heightMap[py * outputWidth + px] = elev;
-        if (elev < minH) minH = elev;
-        if (elev > maxH) maxH = elev;
+        if (Number.isFinite(elev) && elev !== NO_DATA_VALUE) {
+          validSamples++;
+          if (elev < minH) minH = elev;
+          if (elev > maxH) maxH = elev;
+        } else {
+          noDataSamples++;
+        }
       }
     }
 
+    const totalSamples = validSamples + noDataSamples;
+    const noDataRatio = totalSamples > 0 ? noDataSamples / totalSamples : 1;
     if (minH === Infinity) minH = 0;
-    if (maxH === -Infinity) maxH = 0;
+    if (maxH === -Infinity) maxH = minH;
+
+    if (noDataSamples > 0) {
+      // Prevent invalid elevations from creating extreme meshes by filling with the tile baseline.
+      for (let i = 0; i < heightMap.length; i++) {
+        if (!Number.isFinite(heightMap[i]) || heightMap[i] === NO_DATA_VALUE) {
+          heightMap[i] = minH;
+        }
+      }
+    }
 
     let satelliteDataUrl = null;
     if (includeSatellite && sCanvas) {
@@ -382,6 +404,13 @@ export const fetchSurroundingTiles = async (
       minHeight: minH,
       maxHeight: maxH,
       satelliteDataUrl,
+      diagnostics: {
+        validSamples,
+        noDataSamples,
+        totalSamples,
+        noDataRatio,
+        allInvalid: validSamples === 0,
+      },
     };
   }
 

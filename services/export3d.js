@@ -1764,6 +1764,7 @@ const EXPORT_SURROUND_PROFILE = {
   cornerResolution: 256,
   anisotropy: 16,
 };
+const SURROUND_TILE_MAX_NODATA_RATIO = 0.25;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -1772,22 +1773,19 @@ const smoothstep = (edge0, edge1, x) => {
   return t * t * (3 - 2 * t);
 };
 
-const blendToCenterSeamHeight = (data, tileData, offset, globalX, globalZ, surroundingHeight, unitsPerMeter, exaggeration) => {
+const getSeamContext = (data, globalX, globalZ) => {
   const half = SCENE_SIZE / 2;
-  
-  // 1. Point on center tile boundary nearest to current vertex
+
+  // Point on center tile boundary nearest to current vertex.
   const seamX = clamp(globalX, -half, half);
   const seamZ = clamp(globalZ, -half, half);
-  
-  // 2. Euclidean distance to that boundary point
+
+  // Euclidean distance from current point to center-tile seam.
   const dx = globalX - seamX;
   const dz = globalZ - seamZ;
   const distanceToSeam = Math.sqrt(dx * dx + dz * dz);
 
-  if (distanceToSeam > SEAM_BLEND_WIDTH_UNITS) return surroundingHeight;
-
-  // 3. 11-tap Filter along the dominant seam tangent.
-  // Sampling a higher-density filter parallel to the edge to remove noise.
+  // 11-tap filter along dominant seam tangent to stabilize seam elevation.
   const isHorizontalSeam = Math.abs(dz) > Math.abs(dx);
   const meshStep = SCENE_SIZE / EXPORT_SURROUND_PROFILE.seamEdgeResolution;
   const samples = 11;
@@ -1798,24 +1796,44 @@ const blendToCenterSeamHeight = (data, tileData, offset, globalX, globalZ, surro
     const offZ = !isHorizontalSeam ? (t * meshStep * 2.0) : 0;
     totalH += getHeightAtScenePos(data, seamX + offX, seamZ + offZ);
   }
-  const centerEdgeH = totalH / samples;
-  
-  // 4. Surround height at same boundary point
-  const localX = seamX - offset.x * SCENE_SIZE;
-  const localZ = seamZ - offset.z * SCENE_SIZE;
+
+  return {
+    seamX,
+    seamZ,
+    distanceToSeam,
+    centerEdgeH: totalH / samples,
+  };
+};
+
+const blendToCenterSeamHeight = (data, tileData, offset, globalX, globalZ, surroundingHeight, unitsPerMeter, exaggeration) => {
+  const half = SCENE_SIZE / 2;
+  const seam = getSeamContext(data, globalX, globalZ);
+
+  if (seam.distanceToSeam > SEAM_BLEND_WIDTH_UNITS) return surroundingHeight;
+
+  // Surround height at the corresponding boundary point in surrounding tile UV.
+  const localX = seam.seamX - offset.x * SCENE_SIZE;
+  const localZ = seam.seamZ - offset.z * SCENE_SIZE;
   const uEdge = (localX + half) / SCENE_SIZE;
   const vEdge = (localZ + half) / SCENE_SIZE;
   const surroundingRawH = sampleSurroundingHeight(tileData, uEdge, vEdge);
   const surroundingEdgeH = (surroundingRawH - data.minHeight) * unitsPerMeter * exaggeration;
 
-  // 5. Compute vertical difference at seam
-  const errorAtSeam = centerEdgeH - surroundingEdgeH;
-  
-  // 6. Taper offset using a wider smooth curve and a small 100% plateau-ish effect
+  // Compute vertical correction at seam.
+  const errorAtSeam = seam.centerEdgeH - surroundingEdgeH;
+
+  // Taper correction to zero away from seam.
   const plateau = 0.5;
-  const blend = smoothstep(plateau, SEAM_BLEND_WIDTH_UNITS, distanceToSeam);
-  
+  const blend = smoothstep(plateau, SEAM_BLEND_WIDTH_UNITS, seam.distanceToSeam);
+
   return surroundingHeight + errorAtSeam * (1 - blend);
+};
+
+const buildFlatSeamedFallbackHeight = (data, globalX, globalZ, flatHeight = 0) => {
+  const seam = getSeamContext(data, globalX, globalZ);
+  // Keep the seam locked to center terrain and fade to flat across one tile depth.
+  const fade = smoothstep(0, SCENE_SIZE, seam.distanceToSeam);
+  return seam.centerEdgeH * (1 - fade) + flatHeight * fade;
 };
 
 const sampleSurroundingHeight = (tileData, u, v) => {
@@ -1876,6 +1894,17 @@ export const createSurroundingMeshes = async (data, onProgress, maxMeshResolutio
     const group = new THREE.Group();
     group.name = 'surrounding_terrain';
 
+    const diagnosticsSummary = {
+      requestedTiles: Object.keys(results || {}).length,
+      builtTiles: 0,
+      directTiles: 0,
+      flatFallbackTiles: 0,
+      skippedTiles: 0,
+      maxNoDataRatio: SURROUND_TILE_MAX_NODATA_RATIO,
+      tiles: {},
+    };
+    group.userData.surroundingDiagnostics = diagnosticsSummary;
+
     if (!results || Object.keys(results).length === 0) {
       console.warn('[DAE/GLB Surroundings] No results returned from fetch');
       return group;
@@ -1884,6 +1913,26 @@ export const createSurroundingMeshes = async (data, onProgress, maxMeshResolutio
     for (const [pos, tileData] of Object.entries(results)) {
       const offset = SURROUND_OFFSETS[pos];
       if (!offset || !tileData) continue;
+
+      const diagnostics = tileData.diagnostics || null;
+      const noDataRatio = Number.isFinite(diagnostics?.noDataRatio) ? diagnostics.noDataRatio : 0;
+      const useFlatFallback = diagnostics?.allInvalid || noDataRatio > SURROUND_TILE_MAX_NODATA_RATIO;
+      diagnosticsSummary.tiles[pos] = {
+        mode: useFlatFallback ? 'flat-fallback' : 'direct',
+        validSamples: diagnostics?.validSamples ?? null,
+        noDataSamples: diagnostics?.noDataSamples ?? null,
+        totalSamples: diagnostics?.totalSamples ?? null,
+        noDataRatio: Number.isFinite(noDataRatio) ? noDataRatio : null,
+      };
+
+      if (useFlatFallback) {
+        diagnosticsSummary.flatFallbackTiles++;
+        console.warn(
+          `[GLB Surroundings] Tile ${pos}: using flat fallback (valid=${diagnostics?.validSamples ?? 'n/a'}, noData=${diagnostics?.noDataSamples ?? 'n/a'}, ratio=${diagnostics?.noDataRatio ?? 'n/a'})`
+        );
+      } else {
+        diagnosticsSummary.directTiles++;
+      }
 
       onProgress?.(`Building mesh for tile ${pos}...`);
 
@@ -1931,17 +1980,22 @@ export const createSurroundingMeshes = async (data, onProgress, maxMeshResolutio
         const localZ = v * SCENE_SIZE - SCENE_SIZE / 2;
         const globalX = localX + offset.x * SCENE_SIZE;
         const globalZ = localZ + offset.z * SCENE_SIZE;
-        const surroundingHeight = (elev - data.minHeight) * unitsPerMeter * EXAGGERATION;
-        const blendedHeight = blendToCenterSeamHeight(
-          data,
-          tileData,
-          offset,
-          globalX,
-          globalZ,
-          surroundingHeight,
-          unitsPerMeter,
-          EXAGGERATION,
-        );
+        let blendedHeight;
+        if (useFlatFallback) {
+          blendedHeight = buildFlatSeamedFallbackHeight(data, globalX, globalZ, 0);
+        } else {
+          const surroundingHeight = (elev - data.minHeight) * unitsPerMeter * EXAGGERATION;
+          blendedHeight = blendToCenterSeamHeight(
+            data,
+            tileData,
+            offset,
+            globalX,
+            globalZ,
+            surroundingHeight,
+            unitsPerMeter,
+            EXAGGERATION,
+          );
+        }
 
         verts[i * 3]     = localX;
         verts[i * 3 + 1] = -localZ;
@@ -1987,6 +2041,7 @@ export const createSurroundingMeshes = async (data, onProgress, maxMeshResolutio
       mesh.name = `terrain_${pos}`;
       mesh.receiveShadow = true;
       group.add(mesh);
+      diagnosticsSummary.builtTiles++;
     }
 
     return group;
