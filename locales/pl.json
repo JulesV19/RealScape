@@ -448,44 +448,128 @@
     "footer2": "Narzędzia typu open-source dla przepływów pracy terenu ze świata rzeczywistego.",
     "sections": {
       "core": [
-        { "name": "Vue 3", "desc": "Interfejs API kompozycji i zarządzanie stanem reaktywnym" },
-        { "name": "JavaScript (ES6+)", "desc": "Nowoczesny standard z modułami, async/await i wiadomościami pracownika" },
-        { "name": "Tailwind CSS", "desc": "Styling first-utility z obsługą trybu ciemnego" },
-        { "name": "Vite", "desc": "Szybki serwer dev i zoptymalizowane kompilacje produkcyjne" },
-        { "name": "Stan reaktywny lokalny", "desc": "Pinia plus Vue refs/computed z trwałością localStorage" },
-        { "name": "Ikony Lucide", "desc": "Piękny, spójny zestaw ikon (Vue components)" }
+        {
+          "name": "Vue 3",
+          "desc": "Interfejs API kompozycji i zarządzanie stanem reaktywnym"
+        },
+        {
+          "name": "JavaScript (ES6+)",
+          "desc": "Nowoczesny standard z modułami, async/await i wiadomościami pracownika"
+        },
+        {
+          "name": "Tailwind CSS",
+          "desc": "Styling first-utility z obsługą trybu ciemnego"
+        },
+        {
+          "name": "Vite",
+          "desc": "Szybki serwer dev i zoptymalizowane kompilacje produkcyjne"
+        },
+        {
+          "name": "Stan reaktywny lokalny",
+          "desc": "Pinia plus Vue refs/computed z trwałością localStorage"
+        },
+        {
+          "name": "Ikony Lucide",
+          "desc": "Piękny, spójny zestaw ikon (Vue components)"
+        }
       ],
       "render": [
-        { "name": "Three.js", "desc": "Silnik WebGL 3D - geometria, materiały, tekstury, eksport" },
-        { "name": "TresJS", "desc": "Deklaratywny moduł renderujący Vue 3 dla scen Three.js" },
-        { "name": "Cientos", "desc": "OrbitControls, środowisko HDR, cienie, niebo" },
-        { "name": "Mapy cieni kaskadowych", "desc": "4-kaskadowe CSM z mapami cieni 4096px i filtrowaniem PCF" },
-        { "name": "Środowisko HDR", "desc": "4K puresky HDRI do realistycznego oświetlenia otoczenia i refleksji" },
-        { "name": "GLTFExporter", "desc": "Eksport pełnego modelu 3D z terenem, funkcjami OSM i otoczeniem" }
+        {
+          "name": "Three.js",
+          "desc": "Silnik WebGL 3D - geometria, materiały, tekstury, eksport"
+        },
+        {
+          "name": "TresJS",
+          "desc": "Deklaratywny moduł renderujący Vue 3 dla scen Three.js"
+        },
+        {
+          "name": "Cientos",
+          "desc": "OrbitControls, środowisko HDR, cienie, niebo"
+        },
+        {
+          "name": "Mapy cieni kaskadowych",
+          "desc": "4-kaskadowe CSM z mapami cieni 4096px i filtrowaniem PCF"
+        },
+        {
+          "name": "Środowisko HDR",
+          "desc": "4K puresky HDRI do realistycznego oświetlenia otoczenia i refleksji"
+        },
+        {
+          "name": "GLTFExporter",
+          "desc": "Eksport pełnego modelu 3D z terenem, funkcjami OSM i otoczeniem"
+        }
       ],
       "map": [
-        { "name": "Leaflet i Vue-Leaflet", "desc": "Interaktywna mapa 2D z 3 warstwami bazowymi i trybem ciemnym" },
-        { "name": "proj4 i GeoTIFF", "desc": "Reprojection CRS, parsowanie DEM i eksport GeoTIFF" },
-        { "name": "Lokalny poprzeczny Mercator", "desc": "Niestandardowa projekcja metryczna dla siatek 1m/px idealnych dla pikseli" },
-        { "name": "Geokodowanie Nominatim", "desc": "Wyszukiwanie punktu końcowego z dwoma elementami plus wyszukiwanie wstecz dla sugerowanych nazw poziomu BeamNG" }
+        {
+          "name": "Leaflet i Vue-Leaflet",
+          "desc": "Interaktywna mapa 2D z 3 warstwami bazowymi i trybem ciemnym"
+        },
+        {
+          "name": "proj4 i GeoTIFF",
+          "desc": "Reprojection CRS, parsowanie DEM i eksport GeoTIFF"
+        },
+        {
+          "name": "Lokalny poprzeczny Mercator",
+          "desc": "Niestandardowa projekcja metryczna dla siatek 1m/px idealnych dla pikseli"
+        },
+        {
+          "name": "Geokodowanie Nominatim",
+          "desc": "Wyszukiwanie punktu końcowego z dwoma elementami plus wyszukiwanie wstecz dla sugerowanych nazw poziomu BeamNG"
+        }
       ],
       "tex": [
-        { "name": "Interfejs API HTML5 Canvas", "desc": "Proceduralne generowanie tekstury do 8192x8192 z użytkami gruntowymi OSM, drogami i nakładkami" },
-        { "name": "szybka-png", "desc": "16-bitowe kodowanie mapy wysokości i maski drogi" },
-        { "name": "Renderer pasa OSM", "desc": "Proceduralne nakładki dróg, wypełnienia skrzyżowań, wskazówki przejścia dla pieszych i wygładzone krzywe" },
-        { "name": "Pracownicy sieci Web", "desc": "Poza wątkami przetwarzania terenu i próbkowania obrazu z transferowymi buforami" }
+        {
+          "name": "Interfejs API HTML5 Canvas",
+          "desc": "Proceduralne generowanie tekstury do 8192x8192 z użytkami gruntowymi OSM, drogami i nakładkami"
+        },
+        {
+          "name": "szybka-png",
+          "desc": "16-bitowe kodowanie mapy wysokości i maski drogi"
+        },
+        {
+          "name": "Renderer pasa OSM",
+          "desc": "Proceduralne nakładki dróg, wypełnienia skrzyżowań, wskazówki przejścia dla pieszych i wygładzone krzywe"
+        },
+        {
+          "name": "Pracownicy sieci Web",
+          "desc": "Poza wątkami przetwarzania terenu i próbkowania obrazu z transferowymi buforami"
+        }
       ],
-       "src": [
-        { "name": "Kafelki terenu AWS", "desc": "Globalna wysokość SRTM 30m (kodowanie Terrarium na Z15)" },
-        { "name": "Mapa National USGS", "desc": "1m DEM poprzez API dostępu TNM (CONUS, Alaska, Hawaje)" },
-        { "name": "API GPXZ", "desc": "Premium globalna wysokość hi-res z automatycznym dzieleniem na kafelki, sondowanie limitów szybkości i równoległe żądania dla planów płatnych" },
-        { "name": "Esri World Imagery", "desc": "Tekstury satelity wysokiej rozdzielczości na Z17 (~1,2m/px)" },
-        { "name": "Overpass API (OSM)", "desc": "Drogi, budynki, użytki gruntowe, wegetacja, bariery (3 failover endpoints)" },
-        { "name": "JSZip", "desc": "Pakowanie ZIP po stronie klienta dla poziomów BeamNG, sąsiednich kafelków, zadań wsadowych i sesji .mapng" },
-        { "name": "Zarządzanie adresem URL Blob", "desc": "Obsługa binarna dla dużych tekstur, map wysokości i spakowanych eksportów" }
+      "src": [
+        {
+          "name": "Kafelki terenu AWS",
+          "desc": "Globalna wysokość SRTM 30m (kodowanie Terrarium na Z15)"
+        },
+        {
+          "name": "Mapa National USGS",
+          "desc": "1m DEM poprzez API dostępu TNM (CONUS, Alaska, Hawaje)"
+        },
+        {
+          "name": "API GPXZ",
+          "desc": "Premium globalna wysokość hi-res z automatycznym dzieleniem na kafelki, sondowanie limitów szybkości i równoległe żądania dla planów płatnych"
+        },
+        {
+          "name": "Esri World Imagery",
+          "desc": "Tekstury satelity wysokiej rozdzielczości na Z17 (~1,2m/px)"
+        },
+        {
+          "name": "Overpass API (OSM)",
+          "desc": "Drogi, budynki, użytki gruntowe, wegetacja, bariery (3 failover endpoints)"
+        },
+        {
+          "name": "JSZip",
+          "desc": "Pakowanie ZIP po stronie klienta dla poziomów BeamNG, sąsiednich kafelków, zadań wsadowych i sesji .mapng"
+        },
+        {
+          "name": "Zarządzanie adresem URL Blob",
+          "desc": "Obsługa binarna dla dużych tekstur, map wysokości i spakowanych eksportów"
+        }
       ],
       "deploy": [
-        { "name": "Strony Cloudflare", "desc": "Hostowanie statyczne rozmieszczone na krawędziach globalnych za pośrednictwem Wrangler CLI" }
+        {
+          "name": "Strony Cloudflare",
+          "desc": "Hostowanie statyczne rozmieszczone na krawędziach globalnych za pośrednictwem Wrangler CLI"
+        }
       ]
     }
   },
@@ -559,5 +643,18 @@
       "batchCacheClearFailed": "Nie udało się wyczyścić pamięci podręcznej zadania wsadowego.",
       "usgsFallback": "Dane USGS 1m dla tego obszaru były brakujące lub uszkodzone. Powrót do standardowego zestawu danych Terrarium.\n\nWyjście pozostaje na siatce przetwarzania aplikacji 1m/px."
     }
+  },
+  "support": {
+    "donate": "Donate",
+    "cardTitle": "Support MapNG",
+    "cardBody": "If MapNG helps your workflow, tips help keep development going. Optional, always appreciated.",
+    "modalTitle": "Support MapNG",
+    "modalBody": "MapNG will always remain free to use, and donations are completely optional.",
+    "modalBodySecondary": "If you want to support ongoing updates, bug fixes, and new export improvements, you can tip once or become a monthly supporter on Ko-fi.",
+    "openKofi": "Open Ko-fi",
+    "notNow": "Not now",
+    "contextSingle": "Thanks for exporting with MapNG.",
+    "contextBatch": "Batch export complete. Nice work.",
+    "contextGeneral": "Support is optional, and appreciated."
   }
 }

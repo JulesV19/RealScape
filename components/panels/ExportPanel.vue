@@ -511,7 +511,7 @@ const props = defineProps({
   surroundingTilePositions: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(['fetchOsm']);
+const emit = defineEmits(['fetchOsm', 'exportSuccess']);
 
 // Export states
 const isExportingHeightmap = ref(false);
@@ -819,6 +819,15 @@ const triggerDownload = (blob, filename) => {
   URL.revokeObjectURL(url);
 };
 
+const notifyExportSuccess = (type, filename) => {
+  emit('exportSuccess', {
+    mode: 'single',
+    type,
+    filename,
+    at: Date.now(),
+  });
+};
+
 const yieldToUi = async () => {
   await nextTick();
   await new Promise((resolve) => {
@@ -847,6 +856,7 @@ const downloadHeightmap = async () => {
     const typedBlob = await ensureDownloadBlobType(blob, 'image/png');
     const filename = `heightmap_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     triggerDownload(typedBlob, filename);
+    notifyExportSuccess('heightmap', filename);
     const metadata = buildExportMetadata('heightmap', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -865,6 +875,7 @@ const downloadTexture = async () => {
     const td = await getExportTerrainData();
     const filename = `texture_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     await downloadBlobUrlAsFile(td.satelliteTextureUrl ?? props.terrainData.satelliteTextureUrl, filename, 'image/', 'image/png');
+    notifyExportSuccess('texture_satellite', filename);
 
     const metadata = buildExportMetadata('texture_satellite', filename);
     downloadMetadataSidecar(filename, metadata);
@@ -884,6 +895,7 @@ const downloadOSMTexture = async () => {
     const td = await getExportTerrainData();
     const filename = `osm_texture_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     await downloadBlobUrlAsFile(td.osmTextureUrl ?? props.terrainData.osmTextureUrl, filename, 'image/', 'image/png');
+    notifyExportSuccess('texture_osm', filename);
     const metadata = buildExportMetadata('texture_osm', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -902,6 +914,7 @@ const downloadHybridTexture = async () => {
     const td = await getExportTerrainData();
     const filename = `hybrid_texture_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     await downloadBlobUrlAsFile(td.hybridTextureUrl ?? props.terrainData.hybridTextureUrl, filename, 'image/', 'image/png');
+    notifyExportSuccess('texture_hybrid', filename);
     const metadata = buildExportMetadata('texture_hybrid', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -920,6 +933,7 @@ const downloadSegmentedTexture = async () => {
     const td = await getExportTerrainData();
     const filename = `segmented_texture_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     await downloadBlobUrlAsFile(td.segmentedTextureUrl ?? props.terrainData.segmentedTextureUrl, filename, 'image/', 'image/png');
+    notifyExportSuccess('texture_segmented', filename);
     const metadata = buildExportMetadata('texture_segmented', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -938,6 +952,7 @@ const downloadSegmentedHybridTexture = async () => {
     const td = await getExportTerrainData();
     const filename = `segmented_hybrid_texture_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     await downloadBlobUrlAsFile(td.segmentedHybridTextureUrl ?? props.terrainData.segmentedHybridTextureUrl, filename, 'image/', 'image/png');
+    notifyExportSuccess('texture_segmented_hybrid', filename);
     const metadata = buildExportMetadata('texture_segmented_hybrid', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -983,6 +998,7 @@ const downloadRoadMask = async () => {
     const typedBlob = await ensureDownloadBlobType(blob, 'image/png');
     const filename = `road_mask_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.png`;
     triggerDownload(typedBlob, filename);
+    notifyExportSuccess('road_mask', filename);
     const metadata = buildExportMetadata('road_mask', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -1002,6 +1018,7 @@ const downloadGeoTIFF = async () => {
     const { blob: tiffBlob, filename } = await exportGeoTiff(td, props.center);
     const typedBlob = await ensureDownloadBlobType(tiffBlob, 'image/tiff');
     triggerDownload(typedBlob, filename);
+    notifyExportSuccess('geotiff', filename);
     const metadata = buildExportMetadata('geotiff', filename);
     downloadMetadataSidecar(filename, metadata);
   } catch (error) {
@@ -1078,6 +1095,7 @@ const downloadOSM = async () => {
     };
     const filename = `osm_features_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.geojson`;
     downloadJsonFile(geojson, filename);
+    notifyExportSuccess('osm_geojson', filename);
     const metadata = buildExportMetadata('osm_geojson', filename);
     downloadMetadataSidecar(filename, metadata);
   } finally {
@@ -1102,6 +1120,7 @@ const handleGLBExport = async () => {
     const typedBlob = await ensureDownloadBlobType(blob, 'model/gltf-binary', 'application/octet-stream');
     const filename = `terrain_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.glb`;
     triggerDownload(typedBlob, filename);
+    notifyExportSuccess('glb', filename);
     const metadata = buildExportMetadata('glb', filename, {
       modelOptions: {
         centerTextureType: modelCenterTextureType.value,
@@ -1134,6 +1153,7 @@ const handleDAEExport = async () => {
     const typedBlob = await ensureDownloadBlobType(zipBlob, 'application/zip');
     const filename = `terrain_${props.center.lat.toFixed(4)}_${props.center.lng.toFixed(4)}.dae.zip`;
     triggerDownload(typedBlob, filename);
+    notifyExportSuccess('dae_zip', filename);
     const metadata = buildExportMetadata('dae_zip', filename, {
       modelOptions: {
         centerTextureType: modelCenterTextureType.value,
@@ -1178,6 +1198,7 @@ const handleBeamNGLevelExport = async () => {
       },
     });
     triggerDownload(blob, filename);
+    notifyExportSuccess('beamng_level_zip', filename);
   } catch (error) {
     console.error('Failed to export BeamNG level:', error);
     alert(t('export.errorBeamngLevel'));
@@ -1208,6 +1229,7 @@ const handleTERExport = async () => {
     // Cleanup
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 100);
+    notifyExportSuccess('terrain_ter', filename);
 
     const metadata = buildCommonTraceMetadata({
       center: props.center,

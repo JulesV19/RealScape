@@ -154,6 +154,22 @@
       :area-display="areaDisplay"
     />
 
+    <div class="p-3 rounded-lg bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/10 border border-orange-200 dark:border-orange-800">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-xs font-semibold text-orange-700 dark:text-orange-300">{{ t('support.cardTitle') }}</p>
+          <p class="text-[11px] text-orange-700/90 dark:text-orange-300/90 leading-relaxed mt-1">{{ t('support.cardBody') }}</p>
+        </div>
+        <button
+          type="button"
+          @click="$emit('showSupport')"
+          class="shrink-0 px-3 py-1.5 text-[11px] font-semibold bg-[#f45d22] hover:bg-[#e4521a] text-white rounded-md transition-colors"
+        >
+          {{ t('support.donate') }}
+        </button>
+      </div>
+    </div>
+
     <!-- Export Panel (shown when data is available) -->
     <div v-if="terrainData && !isGenerating" ref="exportPanelEl">
       <ExportPanel
@@ -168,6 +184,7 @@
         :fetch-o-s-m="fetchOSM"
         :surrounding-tile-positions="surroundingTilePositions"
         @fetch-osm="$emit('fetchOsm')"
+        @export-success="$emit('exportSuccess', $event)"
       />
     </div>
   </div>
@@ -200,7 +217,7 @@ const { t } = useI18n({ useScope: 'global' });
 
 const props = defineProps(['center', 'zoom', 'resolution', 'isGenerating', 'terrainData', 'generationCacheKey', 'uploadedTifFile', 'uploadedTifMeta']);
 
-const emit = defineEmits(['locationChange', 'resolutionChange', 'zoomChange', 'generate', 'fetchOsm', 'surroundingTilesChange', 'importData', 'tifSelected', 'tifClear']);
+const emit = defineEmits(['locationChange', 'resolutionChange', 'zoomChange', 'generate', 'fetchOsm', 'surroundingTilesChange', 'importData', 'tifSelected', 'tifClear', 'showSupport', 'exportSuccess']);
 
 const handleLocationChange = (newLocation) => {
     emit('locationChange', { ...props.center, ...newLocation });

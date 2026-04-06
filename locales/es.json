@@ -448,44 +448,128 @@
     "footer2": "Herramienta open-source para flujos de terreno del mundo real.",
     "sections": {
       "core": [
-        { "name": "Vue 3", "desc": "Composition API y gestion reactiva de estado" },
-        { "name": "JavaScript (ES6+)", "desc": "Estandar moderno con modulos, async/await y mensajeria con workers" },
-        { "name": "Tailwind CSS", "desc": "Estilo utility-first con soporte dark mode" },
-        { "name": "Vite", "desc": "Servidor dev rapido y builds de produccion optimizados" },
-        { "name": "Estado local reactivo", "desc": "Pinia mas refs/computed de Vue con persistencia en localStorage" },
-        { "name": "Iconos Lucide", "desc": "Set de iconos consistente y cuidado (componentes Vue)" }
+        {
+          "name": "Vue 3",
+          "desc": "Composition API y gestion reactiva de estado"
+        },
+        {
+          "name": "JavaScript (ES6+)",
+          "desc": "Estandar moderno con modulos, async/await y mensajeria con workers"
+        },
+        {
+          "name": "Tailwind CSS",
+          "desc": "Estilo utility-first con soporte dark mode"
+        },
+        {
+          "name": "Vite",
+          "desc": "Servidor dev rapido y builds de produccion optimizados"
+        },
+        {
+          "name": "Estado local reactivo",
+          "desc": "Pinia mas refs/computed de Vue con persistencia en localStorage"
+        },
+        {
+          "name": "Iconos Lucide",
+          "desc": "Set de iconos consistente y cuidado (componentes Vue)"
+        }
       ],
       "render": [
-        { "name": "Three.js", "desc": "Motor WebGL 3D - geometria, materiales, texturas, export" },
-        { "name": "TresJS", "desc": "Renderer declarativo de Vue 3 para escenas Three.js" },
-        { "name": "Cientos", "desc": "OrbitControls, entorno HDR, sombras, cielo" },
-        { "name": "Cascaded Shadow Maps", "desc": "CSM de 4 cascadas con sombras 4096px y filtro PCF" },
-        { "name": "Entorno HDR", "desc": "HDRI puresky 4K para iluminacion ambiental y reflejos" },
-        { "name": "GLTFExporter", "desc": "Exportacion 3D completa con terreno, features OSM y alrededores" }
+        {
+          "name": "Three.js",
+          "desc": "Motor WebGL 3D - geometria, materiales, texturas, export"
+        },
+        {
+          "name": "TresJS",
+          "desc": "Renderer declarativo de Vue 3 para escenas Three.js"
+        },
+        {
+          "name": "Cientos",
+          "desc": "OrbitControls, entorno HDR, sombras, cielo"
+        },
+        {
+          "name": "Cascaded Shadow Maps",
+          "desc": "CSM de 4 cascadas con sombras 4096px y filtro PCF"
+        },
+        {
+          "name": "Entorno HDR",
+          "desc": "HDRI puresky 4K para iluminacion ambiental y reflejos"
+        },
+        {
+          "name": "GLTFExporter",
+          "desc": "Exportacion 3D completa con terreno, features OSM y alrededores"
+        }
       ],
       "map": [
-        { "name": "Leaflet y Vue-Leaflet", "desc": "Mapa 2D interactivo con 3 capas base y dark mode" },
-        { "name": "proj4 y GeoTIFF", "desc": "Reproyeccion CRS, parseo DEM y export GeoTIFF" },
-        { "name": "Transversa de Mercator local", "desc": "Proyeccion metrica personalizada para grillas exactas de 1m/px" },
-        { "name": "Geocodificacion Nominatim", "desc": "Busqueda dual y reverse lookup para sugerir nombres de nivel BeamNG" }
+        {
+          "name": "Leaflet y Vue-Leaflet",
+          "desc": "Mapa 2D interactivo con 3 capas base y dark mode"
+        },
+        {
+          "name": "proj4 y GeoTIFF",
+          "desc": "Reproyeccion CRS, parseo DEM y export GeoTIFF"
+        },
+        {
+          "name": "Transversa de Mercator local",
+          "desc": "Proyeccion metrica personalizada para grillas exactas de 1m/px"
+        },
+        {
+          "name": "Geocodificacion Nominatim",
+          "desc": "Busqueda dual y reverse lookup para sugerir nombres de nivel BeamNG"
+        }
       ],
       "tex": [
-        { "name": "HTML5 Canvas API", "desc": "Generacion procedural de texturas hasta 8192x8192 con uso de suelo OSM, carreteras y overlays" },
-        { "name": "fast-png", "desc": "Codificacion 16-bit de heightmap y road mask" },
-        { "name": "OSM Lane Renderer", "desc": "Overlays de carretera procedurales, relleno de cruces, pistas de pasos peatonales y curvas suavizadas" },
-        { "name": "Web Workers", "desc": "Re-muestreo off-thread de terreno e imagen con buffers transferibles" }
+        {
+          "name": "HTML5 Canvas API",
+          "desc": "Generacion procedural de texturas hasta 8192x8192 con uso de suelo OSM, carreteras y overlays"
+        },
+        {
+          "name": "fast-png",
+          "desc": "Codificacion 16-bit de heightmap y road mask"
+        },
+        {
+          "name": "OSM Lane Renderer",
+          "desc": "Overlays de carretera procedurales, relleno de cruces, pistas de pasos peatonales y curvas suavizadas"
+        },
+        {
+          "name": "Web Workers",
+          "desc": "Re-muestreo off-thread de terreno e imagen con buffers transferibles"
+        }
       ],
       "src": [
-        { "name": "AWS Terrain Tiles", "desc": "Elevacion global SRTM 30m (Terrarium en Z15)" },
-        { "name": "USGS National Map", "desc": "DEM 1m via TNM Access API (CONUS, Alaska, Hawaii)" },
-        { "name": "GPXZ API", "desc": "Elevacion global premium hi-res con auto-chunking, sondeo de limites y solicitudes concurrentes en planes de pago" },
-        { "name": "Esri World Imagery", "desc": "Texturas satelitales de alta resolucion en Z17 (~1.2m/px)" },
-        { "name": "Overpass API (OSM)", "desc": "Carreteras, edificios, uso de suelo, vegetacion, barreras (3 endpoints de failover)" },
-        { "name": "JSZip", "desc": "Empaquetado ZIP client-side para niveles BeamNG, mosaicos circundantes, lotes y sesiones .mapng" },
-        { "name": "Gestion de Blob URL", "desc": "Manejo binario para texturas grandes, mapas de altura y exportaciones empaquetadas" }
+        {
+          "name": "AWS Terrain Tiles",
+          "desc": "Elevacion global SRTM 30m (Terrarium en Z15)"
+        },
+        {
+          "name": "USGS National Map",
+          "desc": "DEM 1m via TNM Access API (CONUS, Alaska, Hawaii)"
+        },
+        {
+          "name": "GPXZ API",
+          "desc": "Elevacion global premium hi-res con auto-chunking, sondeo de limites y solicitudes concurrentes en planes de pago"
+        },
+        {
+          "name": "Esri World Imagery",
+          "desc": "Texturas satelitales de alta resolucion en Z17 (~1.2m/px)"
+        },
+        {
+          "name": "Overpass API (OSM)",
+          "desc": "Carreteras, edificios, uso de suelo, vegetacion, barreras (3 endpoints de failover)"
+        },
+        {
+          "name": "JSZip",
+          "desc": "Empaquetado ZIP client-side para niveles BeamNG, mosaicos circundantes, lotes y sesiones .mapng"
+        },
+        {
+          "name": "Gestion de Blob URL",
+          "desc": "Manejo binario para texturas grandes, mapas de altura y exportaciones empaquetadas"
+        }
       ],
       "deploy": [
-        { "name": "Cloudflare Pages", "desc": "Hosting estatico global en edge via Wrangler CLI" }
+        {
+          "name": "Cloudflare Pages",
+          "desc": "Hosting estatico global en edge via Wrangler CLI"
+        }
       ]
     }
   },
@@ -559,5 +643,18 @@
       "batchCacheClearFailed": "No se pudo limpiar la cache de lote.",
       "usgsFallback": "Los datos USGS 1m para esta zona faltan o estan corruptos. Se usara el dataset Terrarium Estandar.\n\nLa salida se mantiene en la malla de procesamiento de 1m/px de la app."
     }
+  },
+  "support": {
+    "donate": "Donate",
+    "cardTitle": "Support MapNG",
+    "cardBody": "If MapNG helps your workflow, tips help keep development going. Optional, always appreciated.",
+    "modalTitle": "Support MapNG",
+    "modalBody": "MapNG will always remain free to use, and donations are completely optional.",
+    "modalBodySecondary": "If you want to support ongoing updates, bug fixes, and new export improvements, you can tip once or become a monthly supporter on Ko-fi.",
+    "openKofi": "Open Ko-fi",
+    "notNow": "Not now",
+    "contextSingle": "Thanks for exporting with MapNG.",
+    "contextBatch": "Batch export complete. Nice work.",
+    "contextGeneral": "Support is optional, and appreciated."
   }
 }
