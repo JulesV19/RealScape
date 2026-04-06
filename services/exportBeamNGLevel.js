@@ -722,6 +722,51 @@ const ROAD_SKIP = new Set([
   'bridleway', 'corridor', 'proposed', 'construction',
 ]);
 
+// Only major roads receive painted lane markings.
+const MAJOR_ROAD_MARKINGS = new Set([
+  'motorway', 'motorway_link',
+  'trunk', 'trunk_link',
+  'primary', 'primary_link',
+  'secondary', 'secondary_link',
+]);
+
+// Grass edge blends are useful mainly on higher class paved roads.
+const GRASS_EDGE_BLEND_HIGHWAYS = new Set([
+  'motorway', 'motorway_link',
+  'trunk', 'trunk_link',
+  'primary', 'primary_link',
+  'secondary', 'secondary_link',
+]);
+
+const UNPAVED_SURFACES = new Set([
+  'dirt', 'earth', 'gravel', 'fine_gravel', 'ground', 'mud', 'sand',
+  'rock', 'scree', 'grass', 'compacted', 'unpaved', 'pebblestone',
+  'snow', 'ice',
+]);
+
+function isLikelyUnmarkedRoad(tags = {}) {
+  const laneMarkings = String(tags.lane_markings ?? '').trim().toLowerCase();
+  if (laneMarkings === 'yes') return false;
+  if (laneMarkings === 'no') return true;
+
+  const surface = String(tags.surface ?? '').trim().toLowerCase();
+  if (!surface) return false;
+  return UNPAVED_SURFACES.has(surface);
+}
+
+function shouldUseLaneMarkings(highway, tags = {}) {
+  if (!MAJOR_ROAD_MARKINGS.has(highway)) return false;
+  return !isLikelyUnmarkedRoad(tags);
+}
+
+function shouldUseGrassEdgeBlend(highway, tags = {}) {
+  if (!GRASS_EDGE_BLEND_HIGHWAYS.has(highway)) return false;
+  const surface = String(tags.surface ?? '').trim().toLowerCase();
+  // If explicitly unpaved, skip asphalt-grass edge blend.
+  if (surface && UNPAVED_SURFACES.has(surface)) return false;
+  return true;
+}
+
 function isOneWayRoad(tags = {}) {
   const value = String(tags.oneway ?? '').trim().toLowerCase();
   if (value === 'yes' || value === '1' || value === 'true') return true;
@@ -869,8 +914,10 @@ function generateDecalRoads(terrainData, squareSize) {
     if (!highway || ROAD_SKIP.has(highway)) continue;
 
     const style = HIGHWAY_STYLE[highway] ?? DEFAULT_ROAD_STYLE;
-    const edgeBlendMaterial = style.edgeMaterial || ROAD_MARKING_STYLE.edgeBlend.material;
+    const edgeBlendMaterial = ROAD_MARKING_STYLE.edgeBlend.material;
     const isOneWay = isOneWayRoad(feature.tags || {});
+    const useLaneMarkings = shouldUseLaneMarkings(highway, feature.tags || {});
+    const useEdgeBlend = shouldUseGrassEdgeBlend(highway, feature.tags || {});
     const styleHalfWidth = estimateRoadHalfWidth(feature.tags || {}, highway, isOneWay, style.width);
 
     // Clip to the terrain's safe inner boundary, splitting at crossings.
@@ -914,17 +961,21 @@ function generateDecalRoads(terrainData, squareSize) {
         ROAD_MARKING_STYLE.edgeWhite.halfWidth,
       );
 
-      const leftEdgeBlendDecal = makeRoadDecal(leftEdgeBlend, ROAD_MARKING_STYLE.edgeBlend, edgeBlendMaterial);
-      const rightEdgeBlendDecal = makeRoadDecal(rightEdgeBlend, ROAD_MARKING_STYLE.edgeBlend, edgeBlendMaterial);
-      const leftWhiteDecal = makeRoadDecal(leftWhite, ROAD_MARKING_STYLE.edgeWhite);
-      const rightWhiteDecal = makeRoadDecal(rightWhite, ROAD_MARKING_STYLE.edgeWhite);
+      const leftEdgeBlendDecal = useEdgeBlend
+        ? makeRoadDecal(leftEdgeBlend, ROAD_MARKING_STYLE.edgeBlend, edgeBlendMaterial)
+        : null;
+      const rightEdgeBlendDecal = useEdgeBlend
+        ? makeRoadDecal(rightEdgeBlend, ROAD_MARKING_STYLE.edgeBlend, edgeBlendMaterial)
+        : null;
+      const leftWhiteDecal = useLaneMarkings ? makeRoadDecal(leftWhite, ROAD_MARKING_STYLE.edgeWhite) : null;
+      const rightWhiteDecal = useLaneMarkings ? makeRoadDecal(rightWhite, ROAD_MARKING_STYLE.edgeWhite) : null;
 
       if (leftEdgeBlendDecal) decals.push(leftEdgeBlendDecal);
       if (rightEdgeBlendDecal) decals.push(rightEdgeBlendDecal);
       if (leftWhiteDecal) decals.push(leftWhiteDecal);
       if (rightWhiteDecal) decals.push(rightWhiteDecal);
 
-      if (!isOneWay) {
+      if (useLaneMarkings && !isOneWay) {
         const centerYellow = offsetNodes(centerNodes, 0, ROAD_MARKING_STYLE.centerDoubleYellow.halfWidth);
         const centerYellowDecal = makeRoadDecal(centerYellow, ROAD_MARKING_STYLE.centerDoubleYellow);
         if (centerYellowDecal) decals.push(centerYellowDecal);
