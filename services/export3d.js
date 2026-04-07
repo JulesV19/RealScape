@@ -588,7 +588,7 @@ const createTerrainMesh = async (data, maxMeshResolution = 1024, centerTextureTy
 };
 
 export const createOSMGroup = (data, options = {}) => {
-  const { includeVegetation = true } = options;
+  const { includeVegetation = true, includeBarriers = true } = options;
   const group = new THREE.Group();
   if (!data.osmFeatures || data.osmFeatures.length === 0) return group;
 
@@ -828,7 +828,7 @@ export const createOSMGroup = (data, options = {}) => {
         height: Math.max(0.1, config.height - config.minHeight),
         ...config,
       });
-    } else if (f.type === "barrier" && f.geometry.length >= 2) {
+    } else if (includeBarriers && f.type === "barrier" && f.geometry.length >= 2) {
       const config = getBarrierConfig(f.tags);
       const points = f.geometry.map((p) => {
         const v = latLngToScene(data, p.lat, p.lng);

@@ -367,7 +367,7 @@ async function generateHeightmapPng(terrainData, maxSize = 2048) {
 
 /**
  * Generate a Collada (.dae) Blob containing BeamNG-safe OSM 3D objects
- * (buildings, barriers, street furniture) in world-space coordinates.
+ * (buildings, street furniture) in world-space coordinates.
  *
  * Coordinate transform — Three.js scene-space (Y-up, normalized 0–100 units)
  * → BeamNG world-space (Z-up, real metres, origin at terrain centre):
@@ -388,7 +388,12 @@ async function generateHeightmapPng(terrainData, maxSize = 2048) {
 async function generateOSMObjectsDAE(terrainData, worldSize) {
   if (!terrainData.osmFeatures?.length) return null;
 
-  const osmGroup = createOSMGroup(terrainData, { includeVegetation: false });
+  // Barriers are exported as native TSStatic objects in BeamNG scene JSON,
+  // not baked into the generic OSM DAE mesh.
+  const osmGroup = createOSMGroup(terrainData, {
+    includeVegetation: false,
+    includeBarriers: false,
+  });
 
   // Verify there is at least one mesh child — an empty group means no features
   // were of a type that produces geometry (e.g. only road centrelines).
@@ -1216,6 +1221,7 @@ function buildBeamNGExportReport({
   processingLog,
   effectivePbrSource,
   waterObjects,
+  barrierObjects,
   decalRoads,
   forestPlacements,
   forestFiles,
@@ -1280,6 +1286,7 @@ function buildBeamNGExportReport({
     `- PBR source requested: ${options?.requestedPbrSource ?? 'n/a'}`,
     `- PBR source used: ${effectivePbrSource}`,
     `- Include water: ${formatBool(options?.includeWater)}`,
+    `- Include native barriers: ${formatBool(options?.includeNativeBarriers)}`,
     `- Include trees/bushes: ${formatBool(options?.includeTrees)}`,
     `- Tree density scale: ${formatNumber(options?.treeDensity, 2)}x`,
     `- Include rocks: ${formatBool(options?.includeRocks)}`,
@@ -1287,6 +1294,7 @@ function buildBeamNGExportReport({
     'Generated Content',
     `- Terrain materials written: ${terrainMaterialCount}`,
     `- Decal roads generated: ${decalRoads.length}`,
+    `- Native barrier TSStatic objects: ${barrierObjects.length}`,
     `- Water objects generated: ${waterObjects.length}`,
     `- Forest placement groups: ${forestPlacements.size}`,
     `- Forest placement files: ${forestFiles.length}`,
@@ -1395,6 +1403,7 @@ function isClosedRing(points) {
 
 function getTerrainHeightWorld(lat, lng, terrainData) {
   const { bounds, width, height, heightMap, minHeight } = terrainData;
+  const sanitizeHeight = (h) => (Number.isFinite(h) && h > -10000 ? h : minHeight);
   const u = Math.max(0, Math.min(1, (lng - bounds.west) / (bounds.east - bounds.west)));
   const v = Math.max(0, Math.min(1, (bounds.north - lat) / (bounds.north - bounds.south)));
   const fx = u * (width - 1);
@@ -1405,10 +1414,10 @@ function getTerrainHeightWorld(lat, lng, terrainData) {
   const r1 = Math.min(height - 1, r0 + 1);
   const tx = fx - c0;
   const ty = fy - r0;
-  const h00 = heightMap[r0 * width + c0];
-  const h10 = heightMap[r0 * width + c1];
-  const h01 = heightMap[r1 * width + c0];
-  const h11 = heightMap[r1 * width + c1];
+  const h00 = sanitizeHeight(heightMap[r0 * width + c0]);
+  const h10 = sanitizeHeight(heightMap[r0 * width + c1]);
+  const h01 = sanitizeHeight(heightMap[r1 * width + c0]);
+  const h11 = sanitizeHeight(heightMap[r1 * width + c1]);
   return (h00 * (1 - tx) * (1 - ty) + h10 * tx * (1 - ty) + h01 * (1 - tx) * ty + h11 * tx * ty) - minHeight;
 }
 
@@ -1428,6 +1437,237 @@ function rotationMatrixFromYaw(yaw) {
   const c = roundTo(Math.cos(yaw), 6);
   const s = roundTo(Math.sin(yaw), 6);
   return [c, s, 0, -s, c, 0, 0, 0, 1];
+}
+
+const NATIVE_BARRIER_ASSETS = {
+  guardrail: {
+    shapeName: '/levels/west_coast_usa/art/shapes/objects/guardrail1.dae',
+    postShapeName: '/levels/west_coast_usa/art/shapes/objects/guardrailpost.dae',
+    endShapeName: '/levels/west_coast_usa/art/shapes/objects/guardrail_end.dae',
+    segmentLength: 3.8,
+    zOffset: 0.15,
+    postZOffset: 0.02,
+    endZOffset: 0.08,
+    yawOffset: Math.PI * 0.5,
+  },
+  concrete: {
+    shapeName: '/levels/west_coast_usa/art/shapes/objects/jerseybarrier_3m.dae',
+    segmentLength: 3,
+    zOffset: 0.05,
+    yawOffset: Math.PI * 0.5,
+  },
+  fence: {
+    shapeName: '/levels/west_coast_usa/art/shapes/objects/fence_metal1.dae',
+    segmentLength: 4,
+    // In official mesh data, min Z is about -2.38.
+    // Lift by ~2.4m so fence feet sit at terrain level.
+    zOffset: 2.4,
+    yawOffset: Math.PI * 0.5,
+  },
+  chainLinkFence: {
+    shapeName: '/levels/west_coast_usa/art/shapes/objects/screenfence1.dae',
+    segmentLength: 3.5,
+    // In official mesh data, min Z is about -1.52.
+    zOffset: 1.55,
+    yawOffset: Math.PI * 0.5,
+  },
+};
+
+const MAX_NATIVE_BARRIER_OBJECTS = 8000;
+
+function resolveNativeBarrierAsset(tags = {}) {
+  const barrierType = String(tags.barrier ?? '').trim().toLowerCase();
+  const material = String(tags.material ?? '').trim().toLowerCase();
+
+  if (!barrierType || barrierType === 'hedge') return null;
+
+  if (barrierType === 'guard_rail' || barrierType === 'guardrail' || barrierType === 'handrail') {
+    return NATIVE_BARRIER_ASSETS.guardrail;
+  }
+
+  if (
+    barrierType === 'jersey_barrier'
+    || barrierType === 'concrete_barrier'
+  ) {
+    return NATIVE_BARRIER_ASSETS.concrete;
+  }
+
+  if (
+    barrierType === 'fence'
+    || barrierType === 'chain'
+    || barrierType === 'wall'
+    || barrierType === 'city_wall'
+    || barrierType === 'retaining_wall'
+    || barrierType === 'block'
+    || barrierType === 'cable_barrier'
+    || barrierType === 'wire_fence'
+    || barrierType === 'gate'
+  ) {
+    return NATIVE_BARRIER_ASSETS.fence;
+  }
+
+  if (barrierType === 'chain_link' || material === 'chain_link') {
+    return NATIVE_BARRIER_ASSETS.chainLinkFence;
+  }
+
+  return NATIVE_BARRIER_ASSETS.guardrail;
+}
+
+function buildNativeBarrierObjects(terrainData, squareSize) {
+  const features = terrainData.osmFeatures?.filter((feature) => (
+    feature.type === 'barrier' && Array.isArray(feature.geometry) && feature.geometry.length >= 2
+  )) ?? [];
+
+  const objects = [];
+
+  const pushInstanceAtGeo = (pt, yaw, asset, name, zOffsetOverride) => {
+    if (objects.length >= MAX_NATIVE_BARRIER_OBJECTS) return;
+    const rotationYaw = yaw + (Number.isFinite(asset.yawOffset) ? asset.yawOffset : 0);
+    const world = geoToWorldPoint(
+      pt.lat,
+      pt.lng,
+      terrainData,
+      squareSize,
+      Number.isFinite(zOffsetOverride) ? zOffsetOverride : asset.zOffset,
+    );
+    objects.push({
+      __parent: 'Barriers',
+      class: 'TSStatic',
+      name,
+      persistentId: generatePersistentId(),
+      position: [roundTo(world[0], 3), roundTo(world[1], 3), roundTo(world[2], 3)],
+        rotationMatrix: rotationMatrixFromYaw(rotationYaw),
+      shapeName: asset.shapeName,
+      useInstanceRenderData: true,
+    });
+  };
+
+  const pushSegmentInstances = (startPt, endPt, asset, namePrefix) => {
+    const start = geoToWorldPoint(startPt.lat, startPt.lng, terrainData, squareSize, asset.zOffset);
+    const end = geoToWorldPoint(endPt.lat, endPt.lng, terrainData, squareSize, asset.zOffset);
+    const dx = end[0] - start[0];
+    const dy = end[1] - start[1];
+    const segmentLen = Math.hypot(dx, dy);
+    if (!Number.isFinite(segmentLen) || segmentLen < 0.5) return;
+
+    const yaw = Math.atan2(dy, dx);
+    const rotationYaw = yaw + (Number.isFinite(asset.yawOffset) ? asset.yawOffset : 0);
+    const rotationMatrix = rotationMatrixFromYaw(rotationYaw);
+    const count = Math.max(1, Math.floor(segmentLen / Math.max(1, asset.segmentLength)));
+
+    for (let i = 0; i < count; i++) {
+      if (objects.length >= MAX_NATIVE_BARRIER_OBJECTS) return;
+      const t = (i + 0.5) / count;
+      const geoPt = {
+        lat: startPt.lat + (endPt.lat - startPt.lat) * t,
+        lng: startPt.lng + (endPt.lng - startPt.lng) * t,
+      };
+      pushInstanceAtGeo(geoPt, yaw, asset, `${namePrefix}_${objects.length}`);
+    }
+
+    if (asset.postShapeName) {
+      const postSpacing = Math.max(1.5, asset.segmentLength);
+      const postCount = Math.max(2, Math.floor(segmentLen / postSpacing) + 1);
+      for (let i = 0; i < postCount; i++) {
+        if (objects.length >= MAX_NATIVE_BARRIER_OBJECTS) return;
+        const t = postCount <= 1 ? 0 : i / (postCount - 1);
+        const geoPt = {
+          lat: startPt.lat + (endPt.lat - startPt.lat) * t,
+          lng: startPt.lng + (endPt.lng - startPt.lng) * t,
+        };
+        const world = geoToWorldPoint(
+          geoPt.lat,
+          geoPt.lng,
+          terrainData,
+          squareSize,
+          Number.isFinite(asset.postZOffset) ? asset.postZOffset : asset.zOffset,
+        );
+        objects.push({
+          __parent: 'Barriers',
+          class: 'TSStatic',
+          name: `${namePrefix}_post_${objects.length}`,
+          persistentId: generatePersistentId(),
+          position: [roundTo(world[0], 3), roundTo(world[1], 3), roundTo(world[2], 3)],
+          rotationMatrix,
+          shapeName: asset.postShapeName,
+          useInstanceRenderData: true,
+        });
+      }
+    }
+  };
+
+  const pushGuardrailEndcaps = (feature, asset, featureIndex) => {
+    if (!asset.endShapeName || !Array.isArray(feature.geometry) || feature.geometry.length < 2) return;
+    const startPt = feature.geometry[0];
+    const nextPt = feature.geometry[1];
+    const endPt = feature.geometry[feature.geometry.length - 1];
+    const prevPt = feature.geometry[feature.geometry.length - 2];
+
+    const startYaw = Math.atan2(nextPt.lat - startPt.lat, nextPt.lng - startPt.lng);
+    const endYaw = Math.atan2(endPt.lat - prevPt.lat, endPt.lng - prevPt.lng);
+    const rotationStartYaw = startYaw + (Number.isFinite(asset.yawOffset) ? asset.yawOffset : 0);
+    const rotationEndYaw = endYaw + (Number.isFinite(asset.yawOffset) ? asset.yawOffset : 0);
+
+    if (objects.length < MAX_NATIVE_BARRIER_OBJECTS) {
+      const worldStart = geoToWorldPoint(
+        startPt.lat,
+        startPt.lng,
+        terrainData,
+        squareSize,
+        Number.isFinite(asset.endZOffset) ? asset.endZOffset : asset.zOffset,
+      );
+      objects.push({
+        __parent: 'Barriers',
+        class: 'TSStatic',
+        name: `barrier_${featureIndex}_end_start`,
+        persistentId: generatePersistentId(),
+        position: [roundTo(worldStart[0], 3), roundTo(worldStart[1], 3), roundTo(worldStart[2], 3)],
+        rotationMatrix: rotationMatrixFromYaw(rotationStartYaw),
+        shapeName: asset.endShapeName,
+        useInstanceRenderData: true,
+      });
+    }
+
+    if (objects.length < MAX_NATIVE_BARRIER_OBJECTS) {
+      const worldEnd = geoToWorldPoint(
+        endPt.lat,
+        endPt.lng,
+        terrainData,
+        squareSize,
+        Number.isFinite(asset.endZOffset) ? asset.endZOffset : asset.zOffset,
+      );
+      objects.push({
+        __parent: 'Barriers',
+        class: 'TSStatic',
+        name: `barrier_${featureIndex}_end_finish`,
+        persistentId: generatePersistentId(),
+        position: [roundTo(worldEnd[0], 3), roundTo(worldEnd[1], 3), roundTo(worldEnd[2], 3)],
+        rotationMatrix: rotationMatrixFromYaw(rotationEndYaw),
+        shapeName: asset.endShapeName,
+        useInstanceRenderData: true,
+      });
+    }
+  };
+
+  for (let featureIndex = 0; featureIndex < features.length; featureIndex++) {
+    if (objects.length >= MAX_NATIVE_BARRIER_OBJECTS) break;
+    const feature = features[featureIndex];
+    const asset = resolveNativeBarrierAsset(feature.tags || {});
+    if (!asset) continue;
+
+    for (let i = 0; i < feature.geometry.length - 1; i++) {
+      if (objects.length >= MAX_NATIVE_BARRIER_OBJECTS) break;
+      const a = feature.geometry[i];
+      const b = feature.geometry[i + 1];
+      pushSegmentInstances(a, b, asset, `barrier_${featureIndex}`);
+    }
+
+    if (asset.endShapeName && objects.length < MAX_NATIVE_BARRIER_OBJECTS) {
+      pushGuardrailEndcaps(feature, asset, featureIndex);
+    }
+  }
+
+  return objects;
 }
 
 function pointInPolygonLatLng(point, ring) {
@@ -1995,7 +2235,7 @@ function buildGroundCoverObjects(terrainData, squareSize, includeTrees, flavor) 
  *       │   ├── terrain.png
  *       │   └── main.materials.json        (TerrainMaterial + TerrainMaterialTextureSet)
  *       ├── art/shapes/                    (present when OSM features or backdrop exist)
- *       │   ├── osm_objects.dae            (buildings, barriers, street furniture — optional)
+ *       │   ├── osm_objects.dae            (buildings, street furniture — optional)
  *       │   ├── terrain_backdrop.dae       (surrounding terrain mesh — optional)
  *       │   └── main.materials.json        (Materials for all DAEs in this folder)
  *       └── main/
@@ -2016,6 +2256,7 @@ function buildGroundCoverObjects(terrainData, squareSize, includeTrees, flavor) 
  * @param {boolean} [options.applyFoundations=true]         — apply terrain foundation pass under buildings
  * @param {boolean} [options.includeBackdrop=false]         — fetch and include surrounding terrain backdrop DAE
  * @param {boolean} [options.includeWater=true]             — emit native BeamNG inland water objects
+ * @param {boolean} [options.includeNativeBarriers=true]    — emit native BeamNG TSStatic barrier objects from OSM barriers
  * @param {boolean} [options.includeTrees=true]             — emit native BeamNG tree and bush forest instances
  * @param {boolean} [options.includeRocks=false]            — emit native BeamNG rock forest instances
  * @param {number}  [options.treeDensity=1]                 — tree density scale for BeamNG forest placement
@@ -2032,6 +2273,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     applyFoundations = true,
     includeBackdrop = false,
     includeWater = true,
+    includeNativeBarriers = true,
     includeTrees = true,
     includeRocks = false,
     treeDensity = 1,
@@ -2213,6 +2455,12 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
       ]
     : [];
 
+  beginStep(`Building native barrier objects (${includeNativeBarriers ? 'enabled' : 'disabled'})…`, 74);
+  await yield_();
+  const barrierObjects = includeNativeBarriers
+    ? buildNativeBarrierObjects(exportTerrainData, squareSize)
+    : [];
+
   beginStep(`Building vegetation objects (trees: ${includeTrees ? 'on' : 'off'} @ ${normalizedTreeDensity.toFixed(1)}x, rocks: ${includeRocks ? 'on' : 'off'})…`, 77);
   await yield_();
   const forestPlacements = (includeTrees || includeRocks)
@@ -2264,6 +2512,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   zip.folder(`${base}/main/MissionGroup/Level_objects/Other`);
   zip.folder(`${base}/main/MissionGroup/PlayerDropPoints`);
   if (waterObjects.length > 0) zip.folder(`${base}/main/MissionGroup/Level_objects/Water`);
+  if (barrierObjects.length > 0) zip.folder(`${base}/main/MissionGroup/Level_objects/Barriers`);
   if (forestFiles.length > 0 || groundCoverObjects.length > 0) {
     zip.folder(`${base}/main/MissionGroup/Level_objects/vegetation`);
     zip.folder(`${base}/art/forest`);
@@ -2332,6 +2581,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
       applyFoundations,
       includeBackdrop,
       includeWater,
+      includeNativeBarriers,
       includeTrees,
       includeRocks,
       treeDensity: normalizedTreeDensity,
@@ -2349,6 +2599,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     processingLog: processingLogSnapshot,
     effectivePbrSource,
     waterObjects,
+    barrierObjects,
     decalRoads,
     forestPlacements,
     forestFiles,
@@ -2561,6 +2812,12 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
         name: 'Water',
         persistentId: generatePersistentId(),
       }] : []),
+      ...(barrierObjects.length > 0 ? [{
+        __parent: 'Level_objects',
+        class: 'SimGroup',
+        name: 'Barriers',
+        persistentId: generatePersistentId(),
+      }] : []),
       ...((forestFiles.length > 0 || groundCoverObjects.length > 0) ? [{
         __parent: 'Level_objects',
         class: 'SimGroup',
@@ -2639,6 +2896,12 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   if (waterObjects.length > 0) {
     zip.file(`${base}/main/MissionGroup/Level_objects/Water/items.level.json`,
       toNDJSON(waterObjects)
+    );
+  }
+
+  if (barrierObjects.length > 0) {
+    zip.file(`${base}/main/MissionGroup/Level_objects/Barriers/items.level.json`,
+      toNDJSON(barrierObjects)
     );
   }
 
