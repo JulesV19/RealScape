@@ -1265,133 +1265,329 @@ function buildRoadIntersectionNodeKeySet(osmFeatures = []) {
   return intersectionKeys;
 }
 
-function makeRoadArchitectSerializedJunction({
-  type,
-  roads,
-  name,
-  laneWidth,
-}) {
-  const isCrossroads = type === 'crossroads';
-  const laneWidthSafe = clamp(Number(laneWidth) || 3.5, 2.6, 5.0);
+function buildRoadNodeCountMap(osmFeatures = []) {
+  const counts = new Map();
+  for (const feature of osmFeatures) {
+    if (feature?.type !== 'road' || !Array.isArray(feature.geometry) || feature.geometry.length < 2) continue;
+    const highway = feature.tags?.highway;
+    if (!highway || ROAD_SKIP.has(highway)) continue;
+    for (const pt of feature.geometry) {
+      const key = makeLatLngKey(pt);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  return counts;
+}
 
+function createRoadArchitectPedCrossingLayer(name = 'Ped X - R1') {
   return {
+    boxXLeft: 1,
+    boxXRight: 1,
+    boxYLeft: 1,
+    boxYRight: 1,
+    boxZLeft: 1,
+    boxZRight: 1,
+    doNotDelete: true,
+    extentsH: 1,
+    extentsL: 1,
+    extentsW: 1,
+    fadeE: 0,
+    fadeS: 0,
+    frame: 0,
+    isDisplay: true,
+    isHidden: false,
+    isLeft: true,
+    isPaint: false,
+    isReverse: false,
+    isSpanLong: true,
+    jitter: 0,
+    lane: 1,
+    laneMax: 1,
+    laneMin: -1,
+    latOffset: 0,
+    mat: 'crossing_white',
+    matDisplay: '[None]',
+    nMax: 1,
+    nMin: 1,
     name,
-    type,
-    roads,
-    condition: 0.2,
-    conditionSeed: 41226,
-    numPatches: 10,
-    numPotholes: 0,
-    capLength: 4.0,
-    numLanesX: 1,
-    numLanesY: 1,
-    numRBLanes: 2,
-    laneWidthX: laneWidthSafe,
-    laneWidthY: laneWidthSafe,
-    laneWidthRB: laneWidthSafe,
-    extraRadRB: 0.0,
-    isYOneWay: false,
-    isY1Outwards: !isCrossroads,
-    isY2Outwards: false,
-    s2Length: 1.0,
-    s3Length: 1.0,
-    cResWidth: 1.0,
-    sepWidthI: 1.0,
-    sepWidthO: 1.0,
-    sepMat: 'italy_road_markings_zebra_diagonal',
-    hardWidth: 1.0,
-    isBarriersI: false,
-    isBarriersO: false,
-    isSigns: true,
-    isPedX1: true,
-    isPedX2: true,
-    isPedX3: true,
-    isPedX4: isCrossroads,
-    pedXDist: 1.0,
-    pedXWidth: 2.0,
-    isSidewalk: false,
-    bevel: 2.5,
-    theta: 0.0,
-    sidewalkWidth: 2.0,
-    sidewalkHeight: 0.12,
-    isLowerSWAtPedX: true,
-    isTLights: isCrossroads,
-    trafficLatOff: -2.6,
-    isCrossings: true,
-    displayCrossings: false,
-    edgeBlendMat: 'm_road_asphalt_edge',
-    isArrow: true,
-    isDoubleArrows: true,
-    arrowSize: 1.5,
-    arrowFrontDistFromEnd: 2.5,
-    arrowBackDistFromEnd: 12.0,
-    arrowMat: 'm_decal_roadmarkings_01',
-    numCrossings: isCrossroads ? 4 : 3,
-    seed: 41230,
+    numCols: 0,
+    numRows: 0,
+    off: 0,
+    pos: 0,
+    rot: 0,
+    size: 0,
+    spacing: 0,
+    texLen: 5,
+    type: 2,
+    useWorldZ: false,
+    vertOffset: 0,
+    width: 2,
   };
 }
 
-function deriveRoadArchitectJunctionsFromRoads(roads) {
-  if (!Array.isArray(roads) || roads.length < 2) return [];
-
-  const endpointBuckets = new Map();
-
-  const addEndpoint = (road, endName) => {
-    const nodes = road.nodes;
-    if (!Array.isArray(nodes) || nodes.length < 2) return;
-    const idx = endName === 'start' ? 0 : nodes.length - 1;
-    const node = nodes[idx];
-    const x = Number(node?.posX);
-    const y = Number(node?.posY);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-
-    // Bucket nearby endpoints so small floating precision differences still match.
-    const key = `${Math.round(x * 10)}:${Math.round(y * 10)}`;
-    const list = endpointBuckets.get(key) || [];
-    list.push({ roadName: road.name, laneWidth: Number(node?.widths?.['1']) || 3.5 });
-    endpointBuckets.set(key, list);
+function createRoadArchitectTrafficBoomLayer(name = 'traffic boom A') {
+  return {
+    boxXLeft: 1,
+    boxXRight: 1,
+    boxYLeft: 1,
+    boxYRight: 1,
+    boxZLeft: 1,
+    boxZRight: 1,
+    doNotDelete: true,
+    extentsH: 1,
+    extentsL: 1,
+    extentsW: 1,
+    fadeE: 0,
+    fadeS: 0,
+    frame: 0,
+    isDisplay: true,
+    isHidden: false,
+    isLeft: true,
+    isPaint: false,
+    isReverse: false,
+    isSpanLong: true,
+    jitter: 0,
+    lane: -1,
+    laneMax: -1,
+    laneMin: -1,
+    latOffset: 0,
+    mat: '/art/shapes/objects/s_trafficlight_boom_sn.dae',
+    matDisplay: 's_trafficlight_boom_ns.dae',
+    nMax: 1,
+    nMin: 1,
+    name,
+    numCols: 1,
+    numRows: 1,
+    off: 0,
+    pos: 0,
+    rot: 3,
+    size: 3,
+    spacing: 0,
+    texLen: 5,
+    type: 5,
+    useWorldZ: false,
+    vertOffset: 0,
+    width: 1,
   };
+}
 
-  for (const road of roads) {
-    addEndpoint(road, 'start');
-    addEndpoint(road, 'end');
+function createRoadArchitectCrossroadsApproachProfile(pedName) {
+  const profile = createRoadArchitectDefaultProfile();
+  profile.condition = 0.2;
+  profile.conditionCenterline = false;
+  profile.conditionEdgesL = false;
+  profile.conditionEdgesR = false;
+  profile.conditionLaneMarkings = false;
+  profile.conditionEndStopE = false;
+  profile.conditionEndStopS = false;
+  profile.fadeE = 3;
+  profile.fadeS = 3;
+  profile.isEdgeBlendL = false;
+  profile.isEdgeBlendR = false;
+  profile.layers = [
+    createRoadArchitectPedCrossingLayer(pedName),
+    createRoadArchitectTrafficBoomLayer(),
+  ];
+  return profile;
+}
+
+function createRoadArchitectSidewalkOnlyProfile() {
+  return {
+    '1': {
+      cornerDrop: 0,
+      cornerLatOff: 0,
+      heightL: 0.01,
+      heightR: 0.12,
+      isLeftSide: false,
+      kerbWidth: 0.12,
+      type: 'sidewalk',
+      vStart: 0,
+      width: 2,
+    },
+    autoBankingFactor: 1,
+    blendLeftMat: 'm_road_asphalt_edge',
+    blendLeftWidth: 1,
+    blendRightMat: 'm_road_asphalt_edge',
+    blendRightWidth: 1,
+    centerlineMat: 'm_line_yellow_double_discontinue',
+    class: 'urban',
+    condition: 0.2,
+    conditionCenterline: true,
+    conditionEdgesL: true,
+    conditionEdgesR: true,
+    conditionEndStopE: true,
+    conditionEndStopS: true,
+    conditionLaneMarkings: true,
+    conditionSeed: 41234,
+    continueLinesToEnd: false,
+    dirtMat: 'm_dirt_variation_04',
+    edgeLineGapL: 0.25,
+    edgeLineGapR: 0.25,
+    edgeMatL: 'm_line_white',
+    edgeMatR: 'm_line_white',
+    endStopMatE: 'm_line_white',
+    endStopMatS: 'm_line_white',
+    fadeE: 3,
+    fadeS: 3,
+    gutterMargin: 0.02,
+    gutterMat: 'gutter1',
+    gutterWidth: 0.2,
+    isAutoBanking: false,
+    isDeletable: true,
+    isEdgeBlendL: false,
+    isEdgeBlendR: false,
+    isExtraWidth: false,
+    isGutter: false,
+    isGutterShow: false,
+    isShowEdgeBlend: true,
+    isStopDecalE: false,
+    isStopDecalS: false,
+    laneMarkingsMat: 'm_line_yellow_discontinue',
+    layers: {},
+    name: 'New Profile',
+    numPatches: 2,
+    numPotholes: 0,
+    stopGapE: 0.2,
+    stopGapS: 0.2,
+    styleType: 0,
+  };
+}
+
+function makeRoadArchitectSidewalkNode(worldX, worldY, worldZ) {
+  return {
+    heightsL: { '1': 0.01 },
+    heightsR: { '1': 0.12 },
+    incircleRad: 1,
+    isAutoBanked: false,
+    isLocked: true,
+    offset: 0,
+    posX: roundTo(worldX, 6),
+    posY: roundTo(worldY, 6),
+    posZ: roundTo(worldZ, 6),
+    rot: 0,
+    widths: { '1': 2 },
+  };
+}
+
+function normalize2D(dx, dy) {
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return { x: 1, y: 0 };
+  return { x: dx / len, y: dy / len };
+}
+
+function enrichRoadArchitectCrossroads(roads, intersectionEntries, startSidewalkIndex = 1) {
+  if (!Array.isArray(roads) || !intersectionEntries || intersectionEntries.size === 0) {
+    return { sidewalkRoads: [], nextSidewalkIndex: startSidewalkIndex };
   }
 
-  const junctions = [];
-  let junctionIdx = 1;
+  const sidewalkRoads = [];
+  let sidewalkIndex = startSidewalkIndex;
 
-  for (const endpoints of endpointBuckets.values()) {
-    const uniqueRoads = [];
-    const seenRoadNames = new Set();
-    for (const endpoint of endpoints) {
-      if (seenRoadNames.has(endpoint.roadName)) continue;
-      seenRoadNames.add(endpoint.roadName);
-      uniqueRoads.push(endpoint);
+  for (const entries of intersectionEntries.values()) {
+    const uniqueByRoad = new Map();
+    for (const entry of entries) {
+      if (!uniqueByRoad.has(entry.roadIndex)) uniqueByRoad.set(entry.roadIndex, entry);
+    }
+    const candidates = Array.from(uniqueByRoad.values());
+    if (candidates.length < 4) continue;
+
+    const selected = candidates.slice(0, 4);
+
+    for (let i = 0; i < selected.length; i++) {
+      const sel = selected[i];
+      const road = roads[sel.roadIndex];
+      if (!road) continue;
+      road.profile = createRoadArchitectCrossroadsApproachProfile(`Ped X - R${i + 1}`);
+
+      const nodes = road.nodes;
+      if (Array.isArray(nodes) && nodes.length >= 2) {
+        if (sel.endpoint === 'start') nodes[0].isLocked = true;
+        else nodes[nodes.length - 1].isLocked = true;
+      }
     }
 
-    if (uniqueRoads.length < 3) continue;
-    const supportedRoads = uniqueRoads.slice(0, 4);
-    const roadRefs = supportedRoads.map((entry) => entry.roadName);
-    const laneWidthAvg = supportedRoads.reduce((sum, entry) => sum + entry.laneWidth, 0) / supportedRoads.length;
-    const type = supportedRoads.length >= 4 ? 'crossroads' : 't-junction';
+    const centerX = selected.reduce((sum, sel) => sum + sel.endX, 0) / selected.length;
+    const centerY = selected.reduce((sum, sel) => sum + sel.endY, 0) / selected.length;
+    const centerZ = selected.reduce((sum, sel) => sum + sel.endZ, 0) / selected.length;
+    const laneHalf = selected.reduce((sum, sel) => sum + sel.laneHalfWidth, 0) / selected.length;
+    const sidewalkRadius = Math.max(4.5, laneHalf + 2.5);
 
-    junctions.push(makeRoadArchitectSerializedJunction({
-      type,
-      roads: roadRefs,
-      name: `OSM ${type === 'crossroads' ? 'Crossroads' : 'T Junction'} ${junctionIdx}`,
-      laneWidth: laneWidthAvg,
-    }));
-    junctionIdx += 1;
+    selected.sort((a, b) => Math.atan2(a.dirY, a.dirX) - Math.atan2(b.dirY, b.dirX));
+
+    for (let i = 0; i < selected.length; i++) {
+      const a = selected[i];
+      const b = selected[(i + 1) % selected.length];
+      const ax = centerX + a.dirX * sidewalkRadius;
+      const ay = centerY + a.dirY * sidewalkRadius;
+      const bx = centerX + b.dirX * sidewalkRadius;
+      const by = centerY + b.dirY * sidewalkRadius;
+      const bis = normalize2D(a.dirX + b.dirX, a.dirY + b.dirY);
+      const mx = centerX + bis.x * sidewalkRadius * 1.2;
+      const my = centerY + bis.y * sidewalkRadius * 1.2;
+
+      sidewalkRoads.push({
+        bridgeArch: -6,
+        bridgeDepth: 4,
+        bridgeWidth: 5.5,
+        displayName: `Crossroads Sidewalk ${sidewalkIndex++}`,
+        extraE: 2,
+        extraS: 2,
+        forceField: 1,
+        granFactor: 2,
+        groupIdx: {},
+        isAllowTunnels: false,
+        isArc: true,
+        isBridge: false,
+        isCivilEngRoads: false,
+        isConformRoadToTerrain: false,
+        isDisplayLaneInfo: true,
+        isDisplayNodeNumbers: false,
+        isDisplayNodeSpheres: true,
+        isDisplayRefLine: true,
+        isDisplayRoadOutline: true,
+        isDisplayRoadSurface: true,
+        isDrivable: false,
+        isHidden: false,
+        isJctRoad: false,
+        isOverObject: true,
+        isOverlay: false,
+        isRigidTranslation: false,
+        isVis: true,
+        name: generatePersistentId(),
+        nodes: [
+          makeRoadArchitectSidewalkNode(ax, ay, centerZ),
+          makeRoadArchitectSidewalkNode(mx, my, centerZ),
+          makeRoadArchitectSidewalkNode(bx, by, centerZ),
+        ],
+        overlayMat: 'm_tread_marks_clean',
+        profile: createRoadArchitectSidewalkOnlyProfile(),
+        protrudeE: 0,
+        protrudeS: 0,
+        radGran: 15,
+        radOffset: 0,
+        thickness: 1,
+        treatAsInvisibleInEdit: false,
+        zOffsetFromRoad: 0,
+      });
+    }
   }
 
-  return junctions;
+  return { sidewalkRoads, nextSidewalkIndex: sidewalkIndex };
 }
 
 function generateRoadArchitectSession(terrainData, squareSize, levelName) {
   if (!terrainData?.osmFeatures?.length) return null;
 
-  const intersectionNodeKeys = buildRoadIntersectionNodeKeySet(terrainData.osmFeatures);
+  const roadNodeCounts = buildRoadNodeCountMap(terrainData.osmFeatures);
+  const intersectionNodeKeys = new Set();
+  const fourWayNodeKeys = new Set();
+  for (const [key, count] of roadNodeCounts.entries()) {
+    if (count >= 2) intersectionNodeKeys.add(key);
+    if (count >= 4) fourWayNodeKeys.add(key);
+  }
+
   const roads = [];
+  const intersectionEntries = new Map();
 
   for (const feature of terrainData.osmFeatures) {
     if (feature.type !== 'road' || !Array.isArray(feature.geometry) || feature.geometry.length < 2) continue;
@@ -1410,6 +1606,10 @@ function generateRoadArchitectSession(terrainData, squareSize, levelName) {
     for (const segment of clippedSegments) {
       const nodes = segment.map((pt) => makeRoadArchitectNode(pt, terrainData, squareSize, halfWidth, laneCount));
       if (nodes.length < 2) continue;
+
+      const startKey = makeLatLngKey(segment[0]);
+      const endKey = makeLatLngKey(segment[segment.length - 1]);
+      const roadIndex = roads.length;
 
       roads.push({
         bridgeArch: 0,
@@ -1451,19 +1651,46 @@ function generateRoadArchitectSession(terrainData, squareSize, levelName) {
         treatAsInvisibleInEdit: false,
         zOffsetFromRoad: 0,
       });
+
+      const addIntersectionEntry = (nodeKey, endpoint) => {
+        if (!fourWayNodeKeys.has(nodeKey)) return;
+        const road = roads[roadIndex];
+        if (!road || !Array.isArray(road.nodes) || road.nodes.length < 2) return;
+        const endNode = endpoint === 'start' ? road.nodes[0] : road.nodes[road.nodes.length - 1];
+        const nearNode = endpoint === 'start' ? road.nodes[1] : road.nodes[road.nodes.length - 2];
+        const dir = endpoint === 'start'
+          ? normalize2D(nearNode.posX - endNode.posX, nearNode.posY - endNode.posY)
+          : normalize2D(endNode.posX - nearNode.posX, endNode.posY - nearNode.posY);
+        const list = intersectionEntries.get(nodeKey) || [];
+        list.push({
+          roadIndex,
+          endpoint,
+          dirX: dir.x,
+          dirY: dir.y,
+          endX: endNode.posX,
+          endY: endNode.posY,
+          endZ: endNode.posZ,
+          laneHalfWidth: Number(endNode?.widths?.['1']) || 3.5,
+        });
+        intersectionEntries.set(nodeKey, list);
+      };
+
+      addIntersectionEntry(startKey, 'start');
+      addIntersectionEntry(endKey, 'end');
     }
   }
 
   if (roads.length === 0) return null;
 
-  const junctions = deriveRoadArchitectJunctionsFromRoads(roads);
+  const { sidewalkRoads } = enrichRoadArchitectCrossroads(roads, intersectionEntries, 1);
+  if (sidewalkRoads.length > 0) roads.push(...sidewalkRoads);
 
   return {
     data: {
-      groups: [],
-      junctions,
+      groups: {},
+      junctions: {},
       mapName: String(levelName || 'mapng').toLowerCase(),
-      placedGroups: [],
+      placedGroups: {},
       profiles: [createRoadArchitectDefaultProfile()],
       roads,
     },
