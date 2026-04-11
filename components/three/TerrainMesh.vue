@@ -15,12 +15,21 @@ const geometry = shallowRef(null);
 const waterMeshRef = ref(null);
 const waterCubeRenderTarget = shallowRef(null);
 const waterCubeCamera = shallowRef(null);
-const { scene, renderer } = useTresContext();
+const { scene, renderer, camera } = useTresContext();
 const { onBeforeRender } = useLoop();
 
-const WATER_REFLECTION_RESOLUTION = 256;
+const WATER_REFLECTION_RESOLUTION_BY_QUALITY = {
+  low: 64,
+  medium: 96,
+  high: 128,
+};
 const WATER_REFLECTION_UPDATE_EVERY_N_FRAMES = 2;
+const WATER_REFLECTION_FAR = 600;
+const WATER_CAMERA_MOVE_EPSILON = 0.01;
+const WATER_CAMERA_ROT_EPSILON = 0.0008;
 let reflectionFrameCounter = 0;
+const lastReflectionCameraPosition = new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN);
+const lastReflectionCameraQuaternion = new THREE.Quaternion(Number.NaN, Number.NaN, Number.NaN, Number.NaN);
 
 const unitsPerMeter = computed(() => {
   const data = toRaw(props.terrainData);
@@ -44,6 +53,10 @@ const seaLevelSceneZ = computed(() => {
 
 const waterPlaneSize = computed(() => SCENE_SIZE * 3);
 const waterEnvMap = computed(() => waterCubeRenderTarget.value?.texture ?? null);
+const waterReflectionResolution = computed(() => {
+  const quality = String(props.quality || 'medium');
+  return WATER_REFLECTION_RESOLUTION_BY_QUALITY[quality] ?? WATER_REFLECTION_RESOLUTION_BY_QUALITY.medium;
+});
 
 const disposeWaterReflection = () => {
   const sceneObj = scene.value;
@@ -62,13 +75,14 @@ const initWaterReflection = () => {
   if (!sceneObj) return;
   disposeWaterReflection();
 
-  const target = new THREE.WebGLCubeRenderTarget(WATER_REFLECTION_RESOLUTION, {
-    generateMipmaps: true,
-    minFilter: THREE.LinearMipmapLinearFilter,
+  const target = new THREE.WebGLCubeRenderTarget(waterReflectionResolution.value, {
+    generateMipmaps: false,
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
   });
   target.texture.colorSpace = THREE.SRGBColorSpace;
 
-  const cubeCamera = new THREE.CubeCamera(0.1, 6000, target);
+  const cubeCamera = new THREE.CubeCamera(0.1, WATER_REFLECTION_FAR, target);
   sceneObj.add(cubeCamera);
 
   waterCubeRenderTarget.value = markRaw(target);
@@ -79,22 +93,36 @@ watch(() => scene.value, (sceneObj) => {
   if (sceneObj) initWaterReflection();
 }, { immediate: true });
 
+watch(() => props.quality, () => {
+  if (scene.value) initWaterReflection();
+});
+
 onBeforeRender(() => {
   const sceneObj = scene.value;
   const rendererObj = renderer.value;
+  const activeCamera = camera.value;
   const cubeCamera = waterCubeCamera.value;
-  if (!sceneObj || !rendererObj || !cubeCamera) return;
+  if (!sceneObj || !rendererObj || !cubeCamera || !activeCamera) return;
 
   reflectionFrameCounter += 1;
   if (reflectionFrameCounter % WATER_REFLECTION_UPDATE_EVERY_N_FRAMES !== 0) return;
 
+  const cameraMoved = lastReflectionCameraPosition.distanceToSquared(activeCamera.position) > (WATER_CAMERA_MOVE_EPSILON * WATER_CAMERA_MOVE_EPSILON);
+  const cameraRotated = 1 - Math.abs(lastReflectionCameraQuaternion.dot(activeCamera.quaternion)) > WATER_CAMERA_ROT_EPSILON;
+  if (!cameraMoved && !cameraRotated) return;
+
   const waterMesh = waterMeshRef.value?.instance ?? waterMeshRef.value;
-  cubeCamera.position.set(0, seaLevelSceneZ.value + 0.15, 0);
+  // Keep the reflection probe near the viewer to avoid static, boxy artifacts
+  // from sampling a single center-position cubemap over a large water plane.
+  cubeCamera.position.set(activeCamera.position.x, seaLevelSceneZ.value + 0.15, activeCamera.position.z);
 
   // Hide water while capturing to avoid self-reflection artifacts.
   if (waterMesh) waterMesh.visible = false;
   cubeCamera.update(rendererObj, sceneObj);
   if (waterMesh) waterMesh.visible = true;
+
+  lastReflectionCameraPosition.copy(activeCamera.position);
+  lastReflectionCameraQuaternion.copy(activeCamera.quaternion);
 });
 
 // Generate terrain geometry
@@ -320,16 +348,15 @@ onUnmounted(() => {
       <TresMeshPhysicalMaterial
         :color="0x4f9dc6"
         :transparent="true"
-        :opacity="0.55"
-        :roughness="0.06"
+        :opacity="0.6"
+        :roughness="0.14"
         :metalness="0.02"
         :reflectivity="0.95"
         :ior="1.333"
-        :transmission="0.35"
-        :thickness="0.6"
-        :clearcoat="1"
-        :clearcoat-roughness="0.08"
-        :env-map-intensity="1.25"
+        :transmission="0"
+        :clearcoat="0.7"
+        :clearcoat-roughness="0.12"
+        :env-map-intensity="0.95"
         :env-map="waterEnvMap"
         :side="2"
         :depth-write="false"
