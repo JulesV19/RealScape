@@ -1830,6 +1830,49 @@ const WATER_BLOCK_TEMPLATE = {
   wetDepth: 0.2,
 };
 
+const WATER_PLANE_TEMPLATE = {
+  class: 'WaterPlane',
+  Foam: [
+    { foamDir: [0, 1], foamSpeed: 0.01 },
+    { foamDir: [0, -1], foamOpacity: 5, foamSpeed: 0.01, foamTexScale: [4, 4] },
+  ],
+  'Ripples (texture animation)': [
+    { rippleDir: [0, -1], rippleMagnitude: 0.5, rippleSpeed: 0.008, rippleTexScale: [12, 12] },
+    { rippleDir: [0.707, 0.707], rippleMagnitude: 0.5, rippleSpeed: 0.05, rippleTexScale: [2, 2] },
+    { rippleDir: [-0.5, 0.86], rippleMagnitude: 0.35, rippleSpeed: 0.003, rippleTexScale: [120, 120] },
+  ],
+  'Waves (vertex undulation)': [
+    { waveDir: [0, -1], waveMagnitude: 0.5, waveSpeed: 1 },
+    { waveDir: [0.25, 0.2], waveMagnitude: 0.2, waveSpeed: 2 },
+    { waveDir: [0.1, -0.7], waveMagnitude: 0.2, waveSpeed: 3 },
+  ],
+  baseColor: [253, 254, 254, 0],
+  clarity: 0.25,
+  depthGradientMax: 70,
+  distortEndDist: 10,
+  distortFullDepth: 5.5,
+  distortStartDist: 0,
+  foamAmbientLerp: 1,
+  foamMaxDepth: 0.35,
+  foamRippleInfluence: 0.005,
+  fresnelBias: -0.1,
+  fresnelPower: 0.8,
+  gridSize: 100,
+  overallFoamOpacity: 3.5,
+  overallRippleMagnitude: 1,
+  overallWaveMagnitude: 0.15,
+  reflectDetailAdjust: 0,
+  reflectMaxRateMs: 20,
+  reflectivity: 0.2,
+  specularPower: 210,
+  underwaterColor: [60, 223, 254, 253],
+  viscosity: 0.001,
+  waterFogDensity: 0.8,
+  waterFogDensityOffset: 0.1,
+  wetDarkening: 0.15,
+  wetDepth: 0.5,
+};
+
 const RIVER_TEMPLATE = {
   class: 'River',
   Foam: [{}, {}],
@@ -2640,6 +2683,25 @@ function buildWaterBlockObjects(terrainData, squareSize, flavor) {
   });
 }
 
+function buildSeaLevelWaterPlane(terrainData, flavor) {
+  const waterProfile = getWaterProfile(flavor);
+  const minHeight = Number(terrainData?.minHeight);
+  // Terrain world-space Z is stored relative to min elevation, so sea level (0m)
+  // sits at -minHeight in exported level coordinates.
+  const seaLevelZ = Number.isFinite(minHeight) ? -minHeight : 0;
+  return {
+    ...structuredClone(WATER_PLANE_TEMPLATE),
+    cubemap: waterProfile.waterCubemap,
+    depthGradientTex: waterProfile.waterDepthGradientTex,
+    foamTex: waterProfile.waterFoamTex,
+    rippleTex: waterProfile.waterRippleTex,
+    name: 'ocean',
+    persistentId: generatePersistentId(),
+    __parent: 'Water',
+    position: [0, 0, roundTo(seaLevelZ, 3)],
+  };
+}
+
 function smoothHeights(heights) {
   if (heights.length < 3) return heights;
   const out = heights.slice();
@@ -3265,14 +3327,18 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     await yield_();
   }
 
-  beginStep(`Building water objects (${includeWater ? 'enabled' : 'disabled'})…`, 71);
+  beginStep(`Building water objects (sea level + inland ${includeWater ? 'enabled' : 'disabled'})…`, 71);
   await yield_();
-  const waterObjects = includeWater
-    ? [
-        ...buildWaterBlockObjects(exportTerrainData, squareSize, flavor),
-        ...buildRiverObjects(exportTerrainData, squareSize, flavor),
-      ]
-    : [];
+  // Always emit a sea-level WaterPlane; includeWater toggles only inland OSM-derived water.
+  const waterObjects = [
+    buildSeaLevelWaterPlane(exportTerrainData, flavor),
+    ...(includeWater
+      ? [
+          ...buildWaterBlockObjects(exportTerrainData, squareSize, flavor),
+          ...buildRiverObjects(exportTerrainData, squareSize, flavor),
+        ]
+      : []),
+  ];
 
   beginStep(`Building native barrier objects (${includeNativeBarriers ? 'enabled' : 'disabled'})…`, 74);
   await yield_();
@@ -3332,7 +3398,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   zip.folder(`${base}/main/MissionGroup/Level_objects`);
   zip.folder(`${base}/main/MissionGroup/Level_objects/Other`);
   zip.folder(`${base}/main/MissionGroup/PlayerDropPoints`);
-  if (waterObjects.length > 0) zip.folder(`${base}/main/MissionGroup/Level_objects/Water`);
+  zip.folder(`${base}/main/MissionGroup/Water`);
   if (barrierMeshSplineGroups.length > 0) {
     for (const group of barrierMeshSplineGroups) {
       zip.folder(`${base}/main/MissionGroup/${group.groupName}`);
@@ -3661,6 +3727,7 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   const missionGroupItems = [
     { __parent: 'MissionGroup', class: 'SimGroup', name: 'PlayerDropPoints', persistentId: generatePersistentId() },
     { __parent: 'MissionGroup', class: 'SimGroup', name: 'Level_objects', persistentId: generatePersistentId() },
+    { __parent: 'MissionGroup', class: 'SimGroup', name: 'Water', persistentId: generatePersistentId() },
     ...(meshRoads.length > 0 ? [{
       __parent: 'MissionGroup',
       class: 'SimGroup',
@@ -3735,12 +3802,6 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
         name: 'Other',
         persistentId: generatePersistentId(),
       },
-      ...(waterObjects.length > 0 ? [{
-        __parent: 'Level_objects',
-        class: 'SimGroup',
-        name: 'Water',
-        persistentId: generatePersistentId(),
-      }] : []),
       ...((forestFiles.length > 0 || groundCoverObjects.length > 0) ? [{
         __parent: 'Level_objects',
         class: 'SimGroup',
@@ -3816,11 +3877,9 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     toNDJSON(otherItems)
   );
 
-  if (waterObjects.length > 0) {
-    zip.file(`${base}/main/MissionGroup/Level_objects/Water/items.level.json`,
-      toNDJSON(waterObjects)
-    );
-  }
+  zip.file(`${base}/main/MissionGroup/Water/items.level.json`,
+    toNDJSON(waterObjects)
+  );
 
   if (forestFiles.length > 0 || groundCoverObjects.length > 0) {
     zip.file(`${base}/main/MissionGroup/Level_objects/vegetation/items.level.json`,
