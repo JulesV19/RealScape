@@ -355,8 +355,26 @@ const DEFAULT_EXPORTS = {
   geojson: false,
 };
 
+const flattenNestedExportFlags = (raw) => {
+  const flattened = {};
+  let current = raw;
+  let depth = 0;
+  const keys = Object.keys(DEFAULT_EXPORTS);
+  while (current && typeof current === 'object' && depth < 20) {
+    keys.forEach((key) => {
+      if (flattened[key] === undefined && (current[key] === true || current[key] === false)) {
+        flattened[key] = current[key];
+      }
+    });
+    if (!current.value || typeof current.value !== 'object') break;
+    current = current.value;
+    depth += 1;
+  }
+  return flattened;
+};
+
 const normalizeExports = (value) => {
-  const src = (value && typeof value === 'object') ? value : {};
+  const src = flattenNestedExportFlags((value && typeof value === 'object') ? value : {});
   const normalized = {};
   Object.keys(DEFAULT_EXPORTS).forEach((key) => {
     normalized[key] = src[key] === true;
@@ -503,7 +521,7 @@ const handleStart = () => {
     gpxzStatus: gpxzStatus.value ? { ...gpxzStatus.value } : cloneRateLimitInfo(),
     glbMeshResolution: meshResolution.value,
     performanceProfile: performanceProfile.value,
-    exports: { ...exports.value },
+    exports: normalizeExports(exports.value),
   });
 };
 
@@ -531,7 +549,7 @@ const buildRunConfiguration = () => {
     gpxzStatus: gpxzStatus.value ? { ...gpxzStatus.value } : cloneRateLimitInfo(),
     glbMeshResolution: meshResolution.value,
     performanceProfile: performanceProfile.value,
-    exports: { ...exports.value },
+    exports: normalizeExports(exports.value),
   };
 };
 

@@ -181,6 +181,23 @@ const LEGACY_STORAGE_KEY = 'mapng_batch_state';
 
 const toStrictBool = (value) => value === true;
 
+const flattenNestedExportFlags = (raw, keys) => {
+  const flattened = {};
+  let current = raw;
+  let depth = 0;
+  while (current && typeof current === 'object' && depth < 20) {
+    for (const key of keys) {
+      if (flattened[key] === undefined && (current[key] === true || current[key] === false)) {
+        flattened[key] = current[key];
+      }
+    }
+    if (!current.value || typeof current.value !== 'object') break;
+    current = current.value;
+    depth += 1;
+  }
+  return flattened;
+};
+
 const normalizeExportFlags = (raw = {}) => {
   const defaults = {
     heightmap: false,
@@ -197,7 +214,8 @@ const normalizeExportFlags = (raw = {}) => {
     geojson: false,
   };
 
-  const merged = { ...defaults, ...(raw || {}) };
+  const flattened = flattenNestedExportFlags(raw || {}, Object.keys(defaults));
+  const merged = { ...defaults, ...flattened };
   const normalized = {};
   for (const key of Object.keys(defaults)) {
     normalized[key] = toStrictBool(merged[key]);
