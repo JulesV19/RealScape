@@ -2259,7 +2259,6 @@ function buildBeamNGExportReport({
     `- Include water: ${formatBool(options?.includeWater)}`,
     `- Include native barriers: ${formatBool(options?.includeNativeBarriers)}`,
     `- Include trees/bushes: ${formatBool(options?.includeTrees)}`,
-    `- Tree density scale: ${formatNumber(options?.treeDensity, 2)}x`,
     `- Include rocks: ${formatBool(options?.includeRocks)}`,
     '',
     'Generated Content',
@@ -3221,10 +3220,10 @@ function sampleAreaPlacements(feature, terrainData, squareSize, itemType, densit
  *
  * Returns Map<managedForestType, placement[]>.
  */
-function buildForestPlacements(terrainData, squareSize, { includeTrees, includeRocks, treeDensity = 1 }, flavor) {
+function buildForestPlacements(terrainData, squareSize, { includeTrees, includeRocks }, flavor) {
   const regularPlacementsByType = new Map();
   const priorityPlacementsByType = new Map();
-  const treeDensityMultiplier = BEAMNG_TREE_DENSITY_MULTIPLIER * Math.max(0.5, Math.min(10, Number(treeDensity) || 1));
+  const treeDensityMultiplier = BEAMNG_TREE_DENSITY_MULTIPLIER;
   const bushDensityMultiplier = BEAMNG_TREE_DENSITY_MULTIPLIER;
   /**
    * Add a forest placement to priority or regular buckets with hard caps.
@@ -3513,7 +3512,6 @@ function buildGroundCoverObjects(terrainData, squareSize, includeTrees, flavor) 
  * @param {boolean} [options.includeNativeBarriers=true]    — emit native BeamNG TSStatic barrier objects from OSM barriers into MissionGroup/barriers
  * @param {boolean} [options.includeTrees=true]             — emit native BeamNG tree and bush forest instances
  * @param {boolean} [options.includeRocks=false]            — emit native BeamNG rock forest instances
- * @param {number}  [options.treeDensity=1]                 — tree density scale for BeamNG forest placement
  * @param {string}  [options.flavorId]                      — BeamNG official level flavor id
  * @param {string}  [options.levelName]                     — custom user-facing/generated level name
  * @param {'osm'|'image'|'none'} [options.pbrSource='osm'] — layer map source: 'osm' uses OSM polygon data,
@@ -3531,7 +3529,6 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     includeNativeBarriers = true,
     includeTrees = true,
     includeRocks = false,
-    treeDensity = 1,
     useMeshRoads = false,
     flavorId,
     levelName: requestedLevelName = '',
@@ -3542,8 +3539,6 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
   if (pbrSource === undefined) {
     pbrSource = options.generatePbrMaterials === false ? 'none' : 'osm';
   }
-  const normalizedTreeDensity = Math.max(0.5, Math.min(10, Number(treeDensity) || 1));
-
   // Report progress and yield to the browser so UI updates and GC can run.
   /**
    * Emit progress callbacks consumed by the export UI.
@@ -3741,10 +3736,10 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
     String(obj?.shapeName || '').toLowerCase().includes('eca_bld_wood_fence_a.dae')
   ));
 
-  beginStep(`Building vegetation objects (trees: ${includeTrees ? 'on' : 'off'} @ ${normalizedTreeDensity.toFixed(1)}x, rocks: ${includeRocks ? 'on' : 'off'})…`, 77);
+  beginStep(`Building vegetation objects (trees: ${includeTrees ? 'on' : 'off'}, rocks: ${includeRocks ? 'on' : 'off'})…`, 77);
   await yield_();
   const forestPlacements = (includeTrees || includeRocks)
-    ? buildForestPlacements(exportTerrainData, squareSize, { includeTrees, includeRocks, treeDensity: normalizedTreeDensity }, flavor)
+    ? buildForestPlacements(exportTerrainData, squareSize, { includeTrees, includeRocks }, flavor)
     : new Map();
   const forestFiles = serializeForestFiles(forestPlacements);
   const groundCoverObjects = buildGroundCoverObjects(exportTerrainData, squareSize, includeTrees, flavor);
@@ -3972,7 +3967,6 @@ export async function exportBeamNGLevel(terrainData, center, options = {}) {
       includeNativeBarriers,
       includeTrees,
       includeRocks,
-      treeDensity: normalizedTreeDensity,
       requestedPbrSource: pbrSource,
       terrainMaterialNames: pbrResult?.materialNames ?? ['DefaultMaterial'],
     },

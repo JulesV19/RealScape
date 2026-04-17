@@ -245,8 +245,6 @@
     "lakesRivers": "Lakes and rivers",
     "treesBushes": "Trees/Bushes",
     "nativeForest": "Native forest items",
-    "treeDensity": "Tree Density",
-    "experimentalTreeDensity": "Experimental above 5x: very dense forests can increase export time and memory usage.",
     "rocks": "Rocks",
     "quarryRock": "Quarry/rock cover",
     "roads": "Roads",

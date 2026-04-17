@@ -122,25 +122,6 @@
             </label>
           </div>
 
-          <div class="px-0.5 space-y-1" :class="beamNGIncludeTrees ? '' : 'opacity-50'">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.treeDensity') }}</span>
-              <span class="text-[9px] text-gray-500 dark:text-gray-400">{{ beamNGTreeDensity.toFixed(1) }}x</span>
-            </div>
-            <input
-              v-model.number="beamNGTreeDensity"
-              :disabled="!beamNGIncludeTrees"
-              type="range"
-              min="0.5"
-              max="10"
-              step="0.1"
-              class="w-full h-1.5 accent-[#FF6600] cursor-pointer disabled:cursor-not-allowed"
-            />
-            <p v-if="beamNGIncludeTrees && beamNGTreeDensity >= 5" class="text-[9px] text-amber-600 dark:text-amber-400">
-              {{ t('exportPanel.experimentalTreeDensity') }}
-            </p>
-          </div>
-
           <div class="flex items-center justify-between gap-2 px-0.5">
             <span class="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{{ t('exportPanel.rocks') }}</span>
             <label class="flex items-center gap-1.5 cursor-pointer">
@@ -524,7 +505,6 @@ const beamNGIncludeWater = ref(localStorage.getItem('mapng_beamNGIncludeWater') 
 const beamNGIncludeTrees = ref(localStorage.getItem('mapng_beamNGIncludeTrees') !== 'false');
 const beamNGIncludeRocks = ref(localStorage.getItem('mapng_beamNGIncludeRocks') === 'true');
 const beamNGUseMeshRoads = ref(localStorage.getItem('mapng_beamNGUseMeshRoads') === 'true');
-const beamNGTreeDensity = ref(Math.max(0.5, Math.min(10, Number(localStorage.getItem('mapng_beamNGTreeDensity') || '1') || 1)));
 const beamNGFlavorOptions = getBeamNGFlavorOptions();
 const persistedBeamNGFlavor = localStorage.getItem('mapng_beamNGFlavorId') || '';
 const beamNGFlavorId = ref(beamNGFlavorOptions.some((flavor) => flavor.id === persistedBeamNGFlavor) ? persistedBeamNGFlavor : '');
@@ -573,7 +553,6 @@ watch(beamNGIncludeWater, (v) => localStorage.setItem('mapng_beamNGIncludeWater'
 watch(beamNGIncludeTrees, (v) => localStorage.setItem('mapng_beamNGIncludeTrees', String(v)));
 watch(beamNGIncludeRocks, (v) => localStorage.setItem('mapng_beamNGIncludeRocks', String(v)));
 watch(beamNGUseMeshRoads, (v) => localStorage.setItem('mapng_beamNGUseMeshRoads', String(v)));
-watch(beamNGTreeDensity, (v) => localStorage.setItem('mapng_beamNGTreeDensity', String(v)));
 watch(beamNGFlavorId, (v) => localStorage.setItem('mapng_beamNGFlavorId', v));
 watch(showExportGeo, (v) => localStorage.setItem('mapng_showExportGeo', String(v)));
 
@@ -1124,7 +1103,6 @@ const handleBeamNGLevelExport = async () => {
       includeTrees: beamNGIncludeTrees.value,
       includeRocks: beamNGIncludeRocks.value,
       useMeshRoads: beamNGUseMeshRoads.value,
-      treeDensity: beamNGTreeDensity.value,
       flavorId: beamNGFlavorId.value,
       levelName: beamNGLevelName.value.trim(),
       elevationSource: props.elevationSource,
