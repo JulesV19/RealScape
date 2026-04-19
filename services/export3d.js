@@ -6,6 +6,8 @@ import { textures } from "./textureGenerator.js";
 import { createMetricProjector } from "./geoUtils.js";
 import { fetchSurroundingTiles, POSITIONS } from "./surroundingTiles.js";
 import { ColladaExporter } from './ColladaExporter.js';
+import { STYLE_DEFS, REGION_PROFILES } from './buildingStyles.js';
+import { detectFrenchRegion } from './regionDetector.js';
 
 // --- Constants & Helpers ---
 export const SCENE_SIZE = 100;
@@ -152,67 +154,21 @@ const createRoadGeometry = (data, points, width, offset = 0, options = {}) => {
     const ly = getHeightAtScenePos(data, lx, lz);
     const ry = getHeightAtScenePos(data, rx, rz);
 
-    const is3D = options.type === "sidewalk";
-
-    // Création d'une rampe douce (bateau) aux extrémités des trottoirs (intersections)
-    const distFromStart = dists[i];
-    const distFromEnd = totalLength - dists[i];
-    const rampDist = 2.0 * unitsPerMeter; // Rampe de 2 mètres
-
-    let elevMultiplier = 1.0;
-    if (is3D) {
-      if (distFromStart < rampDist) {
-        elevMultiplier = Math.max(0, distFromStart / rampDist);
-      }
-      if (distFromEnd < rampDist) {
-        elevMultiplier = Math.min(elevMultiplier, Math.max(0, distFromEnd / rampDist));
-      }
-      // Lissage de la rampe (Smoothstep)
-      elevMultiplier = elevMultiplier * elevMultiplier * (3 - 2 * elevMultiplier);
-    }
-
-    const elev = (is3D ? 0.15 : 0.02) * unitsPerMeter * elevMultiplier;
-    const depth = is3D ? 0.20 * unitsPerMeter * elevMultiplier : 0;
+    const elev = 0.02 * unitsPerMeter;
 
     vertices.push(lx, ly + elev, lz);
     vertices.push(rx, ry + elev, rz);
-    if (is3D) {
-      vertices.push(lx, ly + elev - depth, lz);
-      vertices.push(rx, ry + elev - depth, rz);
-    }
 
     const uMax = width / 3; // Répétition de la texture tous les 3 mètres en largeur
     const v = accumulatedDist / (3 * unitsPerMeter); // Répétition tous les 3 mètres en longueur
 
     uvs.push(0, v);
     uvs.push(uMax, v);
-    if (is3D) {
-      uvs.push(0, v + 0.1);
-      uvs.push(uMax, v + 0.1);
-    }
 
     if (i < points.length - 1 && !isDashGap) {
-      const stride = is3D ? 4 : 2;
-      const base = i * stride;
-      indices.push(base, base + 1, base + stride);
-      indices.push(base + 1, base + stride + 1, base + stride);
-      if (is3D) {
-        // Murs latéraux des trottoirs
-        indices.push(base, base + stride, base + 2);
-        indices.push(base + 2, base + stride, base + stride + 2);
-        indices.push(base + 1, base + 3, base + stride + 1);
-        indices.push(base + 3, base + stride + 3, base + stride + 1);
-        // Embouts (début et fin du trottoir)
-        if (i === 0) {
-          indices.push(base, base + 3, base + 2);
-          indices.push(base, base + 1, base + 3);
-        }
-        if (i === points.length - 2) {
-          const next = base + stride;
-          indices.push(next, next + 2, next + 1);
-          indices.push(next + 1, next + 2, next + 3);
-        }
-      }
+      const base = i * 2;
+      indices.push(base, base + 1, base + 2);
+      indices.push(base + 1, base + 3, base + 2);
     }
   }
 
@@ -752,8 +708,8 @@ const createTerrainMesh = async (data, maxMeshResolution = 1024, centerTextureTy
           textureUrl,
           (tex) => {
             tex.colorSpace = THREE.SRGBColorSpace;
-            tex.minFilter = THREE.LinearFilter;
-            tex.magFilter = THREE.LinearFilter;
+            tex.minFilter = THREE.LinearMipmapLinearFilter; // Lissage des textures (anti-pixelisation)
+            tex.magFilter = THREE.LinearFilter; // Lissage au zoom
             finalize(tex);
           },
           undefined,
@@ -788,7 +744,19 @@ export const createOSMGroup = (data, options = {}) => {
     simplifyBuildingFootprints = false,
     footprintSimplifyTolerance = 0,
     lightweightVegetationMode = false,
+    regionProfile = null,
   } = options;
+
+  const pickStyle = (seed) => {
+    if (!regionProfile) return 'haussmannien';
+    const r = ((seed * 1664525 + 1013904223) & 0x7fffffff) / 0x7fffffff;
+    let acc = 0;
+    for (const { id, weight } of regionProfile.styles) {
+      acc += weight;
+      if (r < acc) return id;
+    }
+    return regionProfile.styles[regionProfile.styles.length - 1].id;
+  };
   const group = new THREE.Group();
   if (!data.osmFeatures || data.osmFeatures.length === 0) return group;
 
@@ -805,19 +773,8 @@ export const createOSMGroup = (data, options = {}) => {
   const bushesList = [];
   const barriersList = [];
   const streetFurnitureList = [];
-  const footwaysList = [];
-  const pavingGeometries = [];
   // Collect road/path centerline segments in scene coords for orienting furniture
   const roadSegments = [];
-
-  // Identifier tous les nœuds (points) appartenant aux routes pour voitures
-  // Cela nous permettra de savoir exactement où les trottoirs croisent la route
-  const vehicleRoadNodes = new Set();
-  data.osmFeatures.forEach((f) => {
-    if (f.type === "road" && f.tags && !['footway', 'pedestrian', 'path', 'steps'].includes(f.tags.highway)) {
-      f.geometry.forEach(p => vehicleRoadNodes.add(p.lat + ',' + p.lng));
-    }
-  });
 
   const getBarrierConfig = (tags) => {
     const type = tags.barrier;
@@ -1008,6 +965,7 @@ export const createOSMGroup = (data, options = {}) => {
       roofHeight: roofHeight * unitsPerMeter,
       levels: buildingLevels,
       buildingType,
+      hasExplicitColor: !!(tags["building:colour"] || tags["building:color"] || tags.colour || tags.color),
     };
   };
 
@@ -1023,42 +981,6 @@ export const createOSMGroup = (data, options = {}) => {
         roadSegments.push(prevX, prevZ, cur.x, cur.z);
         prevX = cur.x;
         prevZ = cur.z;
-      }
-
-      // Collecter les voies piétonnes et les scinder aux intersections avec les routes
-      if (['footway', 'pedestrian', 'path', 'steps'].includes(f.tags.highway)) {
-        let current = [];
-        for (let i = 0; i < f.geometry.length; i++) {
-          const p = f.geometry[i];
-          const isCrossing = vehicleRoadNodes.has(p.lat + ',' + p.lng);
-          current.push(p);
-          if (isCrossing) {
-            if (current.length >= 2) footwaysList.push({ ...f, geometry: current });
-            current = [p]; // Le segment suivant redémarre à l'intersection
-          }
-        }
-        if (current.length >= 2) {
-          footwaysList.push({ ...f, geometry: current });
-        }
-      } else {
-        // Trottoirs implicites générés depuis les tags de la route
-        const sw = f.tags.sidewalk;
-        if (sw && ['both', 'left', 'right'].includes(sw)) {
-          const points = f.geometry.map(p => latLngToScene(data, p.lat, p.lng));
-          let roadWidth = 6.0;
-          if (f.tags.width) roadWidth = parseFloat(f.tags.width) || 6.0;
-          else if (f.tags.lanes) roadWidth = Math.max(3, parseInt(f.tags.lanes) * 3);
-
-          const sidewalkW = 2.0;
-          const offsetDist = roadWidth / 2 + sidewalkW / 2;
-
-          if (sw === 'both' || sw === 'right') {
-            pavingGeometries.push(createRoadGeometry(data, points, sidewalkW, offsetDist, { type: 'sidewalk' }));
-          }
-          if (sw === 'both' || sw === 'left') {
-            pavingGeometries.push(createRoadGeometry(data, points, sidewalkW, -offsetDist, { type: 'sidewalk' }));
-          }
-        }
       }
     }
 
@@ -1089,6 +1011,16 @@ export const createOSMGroup = (data, options = {}) => {
       }
 
       const config = getBuildingConfig(f.tags, areaMeters);
+      // Assign architectural style: fixed for house/industrial, regional pick for urban types
+      const bSeed = Math.abs(Math.round(points[0].x * 100) * 1000 + Math.round(points[0].z * 100));
+      const styleId = ['house', 'industrial'].includes(config.buildingType)
+        ? config.buildingType
+        : pickStyle(bSeed);
+      // Apply style wall-color palette when OSM doesn't specify a colour
+      if (!config.hasExplicitColor && STYLE_DEFS[styleId]?.wallColors) {
+        const palette = STYLE_DEFS[styleId].wallColors;
+        config.wallColor = parseInt(palette[bSeed % palette.length].replace('#', ''), 16);
+      }
       const holes = (f.holes || [])
         .map((h) => {
           const rawHole = h.map((p) => latLngToScene(data, p.lat, p.lng));
@@ -1106,6 +1038,7 @@ export const createOSMGroup = (data, options = {}) => {
         height: Math.max(0.1, config.height - config.minHeight),
         areaMeters,
         ...config,
+        styleId,
       };
       buildingsList.push(buildingData);
     } else if (includeBarriers && f.type === "barrier" && f.geometry.length >= 2) {
@@ -1309,7 +1242,7 @@ export const createOSMGroup = (data, options = {}) => {
       const ctx = alb.getContext('2d');
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, W, H);
-      drawFn(ctx, W, H);
+      drawFn(ctx, W, H, PPM);
       return {
         tileW, tileH,
         wallMat: new THREE.MeshStandardMaterial({
@@ -1330,199 +1263,167 @@ export const createOSMGroup = (data, options = {}) => {
       };
     };
 
-    // ── Per-type facade definitions ──────────────────────────────────────
-    const FACADES = {
-      // Style Haussmannien de luxe (Appartements avec balcons filants, consoles et fer forgé riche)
-      residential: buildFacadeMat(3.5, 3.5, (ctx, W, H) => {
-        // Pierre de taille
-        ctx.fillStyle = '#e6decb';
-        ctx.fillRect(0, 0, W, H);
-
-        // Joints creux (Rustication)
-        ctx.fillStyle = '#d1c8b4';
-        for (let y = 0; y < H; y += PPM * 0.6 | 0) ctx.fillRect(0, y, W, 2);
-        for (let x = 0; x < W; x += W / 2 | 0) ctx.fillRect(x, 0, 2, H); // Blocs de pierre plus larges
-
-        // Corniche supérieure
-        ctx.fillStyle = '#f2ece1';
-        ctx.fillRect(0, H - PPM * 0.3, W, PPM * 0.3);
-        ctx.fillStyle = '#a8a090';
-        ctx.fillRect(0, H - PPM * 0.3, W, 2);
-
-        // Fenêtre typique (Porte-fenêtre)
-        const wW = PPM * 1.6 | 0, wH = PPM * 2.6 | 0, wx = (W - wW) / 2 | 0, wy = PPM * 0.3 | 0;
-
-        // Encadrement en pierre massif (Chambranle)
-        ctx.fillStyle = '#f5efe6';
-        ctx.fillRect(wx - PPM * 0.2, wy - PPM * 0.2, wW + PPM * 0.4, wH + PPM * 0.2);
-        ctx.fillStyle = '#b8b0a1'; // Ombre creusée pour la normal map
-        ctx.fillRect(wx - PPM * 0.2, wy - PPM * 0.2, wW + PPM * 0.4, 2);
-        ctx.fillRect(wx - PPM * 0.2, wy - PPM * 0.2, 2, wH + PPM * 0.2);
-
-        // Menuiserie
-        ctx.fillStyle = '#fcfcfc';
-        ctx.fillRect(wx - 4, wy - 4, wW + 8, wH + 4);
-
-        // Vitres sombres
-        ctx.fillStyle = '#212529';
-        ctx.fillRect(wx, wy, wW, wH);
-
-        // Petits bois
-        ctx.fillStyle = '#fcfcfc';
-        ctx.fillRect(wx + wW / 2 - 2, wy, 4, wH);
-        for (let i = 1; i <= 4; i++) ctx.fillRect(wx, wy + (wH / 5) * i - 2, wW, 4);
-
-        // Remplacement du balcon filant 2D par un garde-corps individuel (le balcon filant est en 3D)
-        const balFloor = wy + wH;
-        const balH = PPM * 0.7 | 0, balY = balFloor - balH;
-
-        // Consoles (Corbeaux) en pierre sous la fenêtre
-        ctx.fillStyle = '#b5b0a6';
-        ctx.fillRect(wx - PPM * 0.2, balFloor, PPM * 0.3, PPM * 0.5);
-        ctx.fillRect(wx + wW - PPM * 0.1, balFloor, PPM * 0.3, PPM * 0.5);
-
-        // Dalle sous la fenêtre (rebord)
-        ctx.fillStyle = '#dcd4c6';
-        ctx.fillRect(wx - PPM * 0.3, balFloor, wW + PPM * 0.6, PPM * 0.1);
-        ctx.fillStyle = '#8a857d';
-        ctx.fillRect(wx - PPM * 0.3, balFloor + PPM * 0.1, wW + PPM * 0.6, 2);
-
-        // Garde-corps individuel en fer forgé
-        ctx.fillStyle = '#111213';
-        ctx.fillRect(wx - PPM * 0.1, balY, wW + PPM * 0.2, 5); // Lisse haute
-        ctx.fillRect(wx - PPM * 0.1, balFloor - 5, wW + PPM * 0.2, 4); // Lisse basse
-
-        const barSpacing = PPM * 0.25 | 0;
-        for (let x = wx - PPM * 0.1; x <= wx + wW + PPM * 0.1; x += barSpacing) {
-          ctx.fillRect(x, balY, 3, balH); // Barreau
+    // ── Facade definitions: house + industrial (fixed) + active urban styles ──
+    const houseDrawFn = (ctx, W, H, PPM) => {
+      ctx.fillStyle = '#e2d5c3'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#f0e6d5'; ctx.fillRect(0, H - PPM * 0.18, W, PPM * 0.18);
+      const wW = PPM * 1.1, wH = PPM * 1.4, wY = PPM * 0.6;
+      [W * 0.25, W * 0.73].forEach(cx => {
+        const wx = cx - wW / 2;
+        ctx.fillStyle = '#c2b6a3'; ctx.fillRect(wx - 4, wY - 4, wW + 8, wH + 12);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(wx, wY, wW, wH);
+        ctx.fillStyle = '#22262a';
+        ctx.fillRect(wx + 4, wY + 4, wW / 2 - 6, wH - 8);
+        ctx.fillRect(wx + wW / 2 + 2, wY + 4, wW / 2 - 6, wH - 8);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(wx + wW / 2 - 1, wY + 4, 2, wH - 8);
+      });
+    };
+    const industrialDrawFn = (ctx, W, H, PPM) => {
+      ctx.fillStyle = '#8b453a'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#70352e';
+      for (let y = 0; y < H; y += PPM * 0.15 | 0) ctx.fillRect(0, y, W, 1);
+      ctx.fillStyle = '#5e2d27';
+      for (let y = 0; y < H; y += PPM * 0.15 | 0) {
+        for (let x = 0; x < W; x += PPM * 0.3 | 0) {
+          const ox = (y / (PPM * 0.15 | 0)) % 2 === 0 ? 0 : PPM * 0.15 | 0;
+          ctx.fillRect(x + ox, y, 1, PPM * 0.15 | 0);
         }
-      }, 0.65, 8.0),
-
-      // Style Classique Monumental (Bureaux / Bâtiments publics)
-      office: buildFacadeMat(4.0, 4.0, (ctx, W, H) => {
-        ctx.fillStyle = '#d6cfbd';
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#c4bcab';
-        for (let y = 0; y < H; y += PPM * 0.6 | 0) ctx.fillRect(0, y, W, 2);
-        ctx.fillStyle = '#eae4d3';
-        ctx.fillRect(0, H - PPM * 0.3, W, PPM * 0.3);
-        ctx.fillStyle = '#9e9787';
-        ctx.fillRect(0, H - PPM * 0.3, W, 2);
-
-        const wW = PPM * 1.8 | 0, wH = PPM * 2.8 | 0, wx = (W - wW) / 2 | 0, wy = PPM * 0.5 | 0;
-        ctx.fillStyle = '#e8e8e8';
-        ctx.fillRect(wx - 5, wy - 5, wW + 10, wH + 5);
-        ctx.fillStyle = '#1a1f24';
-        ctx.fillRect(wx, wy, wW, wH);
-        ctx.fillStyle = '#e8e8e8';
-        ctx.fillRect(wx + wW / 2 - 2, wy, 4, wH);
-        ctx.fillRect(wx, wy + wH / 2 - 2, wW, 4);
-        ctx.fillStyle = '#a6a195';
-        ctx.fillRect(wx - PPM * 0.2, wy + wH, wW + PPM * 0.4, PPM * 0.1);
-      }, 0.65, 5.0),
-
-      // Maison de ville (Garde le style pierre classique)
-      house: buildFacadeMat(5, 3, (ctx, W, H) => {
-        ctx.fillStyle = '#e2d5c3'; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#f0e6d5'; ctx.fillRect(0, H - PPM * 0.18, W, PPM * 0.18);
-        const wW = PPM * 1.1, wH = PPM * 1.4, wY = PPM * 0.6;
-        [W * 0.25, W * 0.73].forEach(cx => {
-          const wx = cx - wW / 2;
-          ctx.fillStyle = '#c2b6a3'; ctx.fillRect(wx - 4, wY - 4, wW + 8, wH + 12);
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(wx, wY, wW, wH);
-          ctx.fillStyle = '#22262a';
-          ctx.fillRect(wx + 4, wY + 4, wW / 2 - 6, wH - 8);
-          ctx.fillRect(wx + wW / 2 + 2, wY + 4, wW / 2 - 6, wH - 8);
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(wx + wW / 2 - 1, wY + 4, 2, wH - 8);
-        });
-      }, 0.88),
-
-      // Bâtiment industriel en briques
-      industrial: buildFacadeMat(6, 4, (ctx, W, H) => {
-        ctx.fillStyle = '#8b453a'; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#70352e';
-        for (let y = 0; y < H; y += PPM * 0.15 | 0) ctx.fillRect(0, y, W, 1);
-        ctx.fillStyle = '#5e2d27';
-        for (let y = 0; y < H; y += PPM * 0.15 | 0) {
-          for (let x = 0; x < W; x += PPM * 0.3 | 0) {
-            const ox = (y / (PPM * 0.15 | 0)) % 2 === 0 ? 0 : PPM * 0.15 | 0;
-            ctx.fillRect(x + ox, y, 1, PPM * 0.15 | 0);
-          }
-        }
-        const wW = W * 0.55 | 0, wH = PPM * 1.5 | 0, wx = (W - wW) / 2 | 0, wy = PPM * 1.2 | 0;
-        ctx.fillStyle = '#333333'; ctx.fillRect(wx - 4, wy - 4, wW + 8, wH + 8);
-        ctx.fillStyle = '#111111'; ctx.fillRect(wx, wy, wW, wH);
-        ctx.fillStyle = '#444444';
-        for (let i = 1; i < 4; i++) ctx.fillRect(wx + (wW / 4 * i) | 0, wy, 2, wH);
-        for (let i = 1; i < 3; i++) ctx.fillRect(wx, wy + (wH / 3 * i) | 0, wW, 2);
-      }, 0.92),
-
-      // Défaut (Générique Haussmannien avec balcons individuels)
-      default: buildFacadeMat(3.5, 3.5, (ctx, W, H) => {
-        ctx.fillStyle = '#dcd4c6'; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#c8bfaf';
-        for (let y = 0; y < H; y += PPM * 0.5 | 0) ctx.fillRect(0, y, W, 1);
-
-        ctx.fillStyle = '#f0ebe1'; ctx.fillRect(0, H - PPM * 0.2, W, PPM * 0.2);
-        ctx.fillStyle = '#999183'; ctx.fillRect(0, H - PPM * 0.2, W, 2);
-
-        const wW = PPM * 1.4, wH = PPM * 2.2, wY = PPM * 0.6, wx = (W - wW) / 2 | 0;
-        ctx.fillStyle = '#ece4d5'; ctx.fillRect(wx - 5, wY - 5, wW + 10, wH + 5);
-        ctx.fillStyle = '#a69e90'; ctx.fillRect(wx - 5, wY - 5, wW + 10, 2);
-
-        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(wx - 2, wY - 2, wW + 4, wH + 4);
-        ctx.fillStyle = '#2b3036';
-        ctx.fillRect(wx + 2, wY + 2, wW / 2 - 4, wH - 4);
-        ctx.fillRect(wx + wW / 2 + 2, wY + 2, wW / 2 - 4, wH - 4);
-
-        const balH = PPM * 0.8 | 0, balY = wY + wH - balH;
-        ctx.fillStyle = '#a39d93';
-        ctx.fillRect(wx - PPM * 0.2, wY + wH, wW + PPM * 0.4, PPM * 0.15);
-        ctx.fillStyle = '#1c1e1f';
-        ctx.fillRect(wx - PPM * 0.2, balY, wW + PPM * 0.4, 4);
-        for (let i = 0; i <= 10; i++) ctx.fillRect((wx - PPM * 0.2) + i * ((wW + PPM * 0.4) / 10) - 1, balY, 2, balH);
-      }, 0.82),
+      }
+      const wW = W * 0.55 | 0, wH = PPM * 1.5 | 0,
+        wx = (W - wW) / 2 | 0, wy = PPM * 1.2 | 0;
+      ctx.fillStyle = '#333333'; ctx.fillRect(wx - 4, wy - 4, wW + 8, wH + 8);
+      ctx.fillStyle = '#111111'; ctx.fillRect(wx, wy, wW, wH);
+      ctx.fillStyle = '#444444';
+      for (let i = 1; i < 4; i++) ctx.fillRect(wx + (wW / 4 * i) | 0, wy, 2, wH);
+      for (let i = 1; i < 3; i++) ctx.fillRect(wx, wy + (wH / 3 * i) | 0, wW, 2);
     };
 
-    // Boutiques et brasseries pour les rez-de-chaussée parisiens
-    const SHOP = buildFacadeMat(4.0, 4.0, (ctx, W, H) => {
-      // Pierre de taille / mur de fond plus clair
-      ctx.fillStyle = '#e6decb';
-      ctx.fillRect(0, 0, W, H);
+    const FACADES = {
+      house: buildFacadeMat(5, 3, houseDrawFn, 0.88),
+      industrial: buildFacadeMat(6, 4, industrialDrawFn, 0.92),
+    };
+    // Add one facade per active urban style
+    const _activeStyleIds = new Set(
+      buildingsList
+        .filter(b => !['house', 'industrial'].includes(b.buildingType))
+        .map(b => b.styleId)
+    );
+    for (const sid of _activeStyleIds) {
+      const def = STYLE_DEFS[sid];
+      if (def) FACADES[sid] = buildFacadeMat(def.floorW, def.floorH, def.draw, def.roughness, def.normalStrength);
+    }
 
-      // Devanture en bois peint clair ou pierre (plus de noir)
+
+    // ── Rez-de-chaussée : 3 tuiles distinctes ────────────────────────────
+
+    // Fenêtres résidentielles (3m × 4m)
+    const GROUND_WIN = buildFacadeMat(3.0, 4.0, (ctx, W, H) => {
+      ctx.fillStyle = '#e2d6c2'; ctx.fillRect(0, 0, W, H);
+      const soubas = PPM * 0.5;
+      ctx.fillStyle = '#ccc2ae'; ctx.fillRect(0, H - soubas, W, soubas);
+      ctx.fillStyle = '#b8ad9a'; ctx.fillRect(0, H - soubas - 2, W, 2);
+
+      const wW = PPM * 1.1, wH = PPM * 1.75;
+      const wX = (W - wW) / 2, wY = H - soubas - wH - PPM * 0.2;
+
+      // Encadrement pierre
+      ctx.fillStyle = '#cfc5b1'; ctx.fillRect(wX - 7, wY - 8, wW + 14, wH + 14);
+      // Linteau
+      ctx.fillStyle = '#c0b6a2'; ctx.fillRect(wX - 9, wY - 10, wW + 18, 6);
+      // Appui de fenêtre
+      ctx.fillStyle = '#b8ad9a'; ctx.fillRect(wX - 9, wY + wH, wW + 18, 7);
+
+      const gW = (wW - 5) / 2;
+      ctx.fillStyle = '#4f6070'; ctx.globalAlpha = 0.82;
+      ctx.fillRect(wX, wY, gW, wH);
+      ctx.fillRect(wX + gW + 5, wY, gW, wH);
+      ctx.globalAlpha = 1.0;
+
+      // Meneau vertical et traverse
+      ctx.fillStyle = '#cfc5b1';
+      ctx.fillRect(wX + gW, wY, 5, wH);
+      ctx.fillRect(wX, wY + wH * 0.42, wW, 3);
+
+      // Grille en fer forgé (partie basse)
+      ctx.fillStyle = '#222'; ctx.globalAlpha = 0.2;
+      for (let gy = wY + wH * 0.6; gy < wY + wH - 4; gy += 5) ctx.fillRect(wX + 2, gy, wW - 4, 1);
+      ctx.globalAlpha = 1.0;
+    }, 0.72, 3.5);
+
+    // Porte d'entrée cochère (2.5m × 4m)
+    const GROUND_DOOR = buildFacadeMat(2.5, 4.0, (ctx, W, H) => {
+      ctx.fillStyle = '#e2d6c2'; ctx.fillRect(0, 0, W, H);
+      const soubas = PPM * 0.5;
+      ctx.fillStyle = '#ccc2ae'; ctx.fillRect(0, H - soubas, W, soubas);
+      ctx.fillStyle = '#b8ad9a'; ctx.fillRect(0, H - soubas - 2, W, 2);
+
+      const dW = PPM * 1.4, dH = H - soubas;
+      const dX = (W - dW) / 2;
+      const archR = dW / 2;
+      const archCY = archR; // arche centrée en haut
+
+      // Encadrement pierre (voussures)
+      ctx.fillStyle = '#c8bfaa';
+      ctx.beginPath();
+      ctx.arc(W / 2, archCY, archR + 9, Math.PI, 0);
+      ctx.lineTo(dX + dW + 9, H - soubas);
+      ctx.lineTo(dX - 9, H - soubas);
+      ctx.closePath();
+      ctx.fill();
+
+      // Imposte vitrée (demi-cercle supérieur)
+      ctx.fillStyle = '#6a8090'; ctx.globalAlpha = 0.65;
+      ctx.beginPath();
+      ctx.arc(W / 2, archCY, archR - 3, Math.PI, 0);
+      ctx.lineTo(dX + dW - 3, archCY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Vantaux en bois (partie rectangulaire)
+      const panelY = archCY, panelH = dH - archCY;
+      ctx.fillStyle = '#5c4030';
+      ctx.fillRect(dX, panelY, dW, panelH);
+
+      // Séparation des vantaux + moulures horizontales
+      ctx.fillStyle = '#4a3020';
+      ctx.fillRect(dX + dW / 2 - 2, panelY, 4, panelH);
+      ctx.fillRect(dX, panelY + panelH * 0.32, dW, 2);
+      ctx.fillRect(dX, panelY + panelH * 0.64, dW, 2);
+
+      // Poignées laiton
+      ctx.fillStyle = '#c8a840';
+      ctx.fillRect(dX + dW * 0.28 | 0, (panelY + panelH * 0.5 - 4) | 0, 4, 9);
+      ctx.fillRect(dX + dW * 0.68 | 0, (panelY + panelH * 0.5 - 4) | 0, 4, 9);
+
+      // Plaque interphone
+      ctx.fillStyle = '#999';
+      ctx.fillRect((dX + dW + 4) | 0, (panelY + panelH * 0.35) | 0, 7, 12);
+    }, 0.72, 3.5);
+
+    // Devanture boutique (4m × 4m)
+    const GROUND_SHOP = buildFacadeMat(4.0, 4.0, (ctx, W, H) => {
+      ctx.fillStyle = '#e6decb'; ctx.fillRect(0, 0, W, H);
       const padX = PPM * 0.4;
-      const shopH = H - PPM * 0.6; // Laisse de la pierre au dessus
-      ctx.fillStyle = '#d4cbb3';
-      ctx.fillRect(0, 0, W, shopH);
+      const shopH = H - PPM * 0.6;
+      ctx.fillStyle = '#d4cbb3'; ctx.fillRect(0, 0, W, shopH);
 
       // Bandeau d'enseigne
-      ctx.fillStyle = '#c2b8a3';
-      ctx.fillRect(0, 0, W, PPM * 0.9);
-      // Moulures
+      ctx.fillStyle = '#c2b8a3'; ctx.fillRect(0, 0, W, PPM * 0.9);
       ctx.fillStyle = '#9e9581';
       ctx.fillRect(0, PPM * 0.15, W, 2);
       ctx.fillRect(0, PPM * 0.75, W, 2);
-      // Texte simulé (petits tirets)
-      ctx.fillStyle = '#7a7363';
-      for (let x = W * 0.3; x < W * 0.7; x += PPM * 0.3) ctx.fillRect(x, PPM * 0.4, PPM * 0.15, PPM * 0.2);
 
       // Vitrine
       const glassW = W - padX * 2, glassH = shopH - PPM * 1.8, glassY = PPM * 1.8;
-      ctx.fillStyle = '#b0a793'; // Soubassement
-      ctx.fillRect(padX, PPM * 0.9, glassW, PPM * 0.9);
-      ctx.fillStyle = '#918977'; // Moulure
-      ctx.fillRect(padX + 5, PPM * 1.0, glassW - 10, PPM * 0.7);
-      ctx.fillStyle = '#1a1c1e'; // Vitre sombre (simule l'intérieur)
-      ctx.fillRect(padX, glassY, glassW, glassH);
-
-      // Reflets et montants
+      ctx.fillStyle = '#b0a793'; ctx.fillRect(padX, PPM * 0.9, glassW, PPM * 0.9);
+      ctx.fillStyle = '#1a1c1e'; ctx.fillRect(padX, glassY, glassW, glassH);
       ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.1;
       ctx.beginPath(); ctx.moveTo(padX, glassY); ctx.lineTo(padX + glassW * 0.5, glassY); ctx.lineTo(padX, glassY + glassH * 0.8); ctx.fill();
       ctx.globalAlpha = 1.0;
       ctx.fillStyle = '#d4cbb3'; ctx.fillRect(W / 2 - 2, glassY, 4, glassH);
-      ctx.fillStyle = '#8b3a3a'; ctx.fillRect(0, PPM * 0.9, W, PPM * 0.15); // Store replié bordeaux
-    }, 0.6, 4.0); // Texture de pierre légèrement rugueuse
+      ctx.fillStyle = '#8b3a3a'; ctx.fillRect(0, PPM * 0.9, W, PPM * 0.15);
+    }, 0.6, 4.0);
 
     // ── Geometry helpers ─────────────────────────────────────────────────
     const _buildWall = (pts, holes, yBase, yTop, hexColor, tileW, tileH) => {
@@ -1547,6 +1448,76 @@ export const createOSMGroup = (data, options = {}) => {
       geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
       geo.computeVertexNormals();
       return geo;
+    };
+
+    // Génère un quad mural pour un segment d'arête avec la tuile choisie
+    const _buildEdgeSegment = (p0, p1, yBase, yTop, tile) => {
+      const dx = p1.x - p0.x, dz = p1.z - p0.z;
+      const segLen = Math.sqrt(dx * dx + dz * dz);
+      const uE = segLen / unitsPerMeter / tile.tileW;
+      const vH = (yTop - yBase) / unitsPerMeter / tile.tileH;
+      const pos = [
+        p0.x, yBase, p0.z,  p1.x, yBase, p1.z,  p1.x, yTop, p1.z,
+        p0.x, yBase, p0.z,  p1.x, yTop,  p1.z,   p0.x, yTop, p0.z,
+      ];
+      const uv = [0, 0, uE, 0, uE, vH, 0, 0, uE, vH, 0, vH];
+      const col = new Float32Array(18); col.fill(1.0);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      return geo;
+    };
+
+    // Génère le rez-de-chaussée segment par segment :
+    // - une porte sur le côté le plus long (centre)
+    // - ~15 % de boutiques aléatoires
+    // - fenêtres résidentielles partout ailleurs
+    const _buildGroundFloor = (pts, holes, yBase, yTop, seed) => {
+      const winGeos = [], doorGeos = [], shopGeos = [];
+
+      let longestEdgeIdx = 0, longestLen = 0;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const dx = pts[i + 1].x - pts[i].x, dz = pts[i + 1].z - pts[i].z;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len > longestLen) { longestLen = len; longestEdgeIdx = i; }
+      }
+
+      let doorPlaced = false;
+
+      const processRing = (ring, isExterior) => {
+        for (let ei = 0; ei < ring.length - 1; ei++) {
+          const a = ring[ei], b = ring[ei + 1];
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const edgeLen = Math.sqrt(dx * dx + dz * dz);
+          const segW = 3.0 * unitsPerMeter;
+          const numSegs = Math.max(1, Math.round(edgeLen / segW));
+          const isDoorEdge = isExterior && !doorPlaced && ei === longestEdgeIdx;
+          const doorSeg = isDoorEdge ? Math.floor(numSegs / 2) : -1;
+          if (isDoorEdge) doorPlaced = true;
+
+          for (let si = 0; si < numSegs; si++) {
+            const t0 = si / numSegs, t1 = (si + 1) / numSegs;
+            const p0 = { x: a.x + dx * t0, z: a.z + dz * t0 };
+            const p1 = { x: a.x + dx * t1, z: a.z + dz * t1 };
+            const rng = (seed + ei * 17 + si * 31) % 100;
+            let tile, arr;
+            if (si === doorSeg) {
+              tile = GROUND_DOOR; arr = doorGeos;
+            } else if (rng < 15) {
+              tile = GROUND_SHOP; arr = shopGeos;
+            } else {
+              tile = GROUND_WIN; arr = winGeos;
+            }
+            arr.push(_buildEdgeSegment(p0, p1, yBase, yTop, tile));
+          }
+        }
+      };
+
+      processRing(pts, true);
+      holes.forEach(h => processRing(h, false));
+      return { winGeos, doorGeos, shopGeos };
     };
 
     const _colorBuf = (hex, count) => {
@@ -1612,47 +1583,6 @@ export const createOSMGroup = (data, options = {}) => {
       return _roofFromPos(pos, hex);
     };
 
-    const _gabledRoof = (pts, yBase, rH, hex) => {
-      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-      for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
-      const yA = yBase + rH, pos = [];
-      if ((x1 - x0) >= (z1 - z0)) {
-        const mz = (z0 + z1) / 2;
-        pos.push(x0, yBase, z0, x1, yA, mz, x1, yBase, z0, x0, yBase, z0, x0, yA, mz, x1, yA, mz);
-        pos.push(x0, yBase, z1, x1, yBase, z1, x1, yA, mz, x0, yBase, z1, x1, yA, mz, x0, yA, mz);
-        pos.push(x0, yBase, z0, x0, yBase, z1, x0, yA, mz);
-        pos.push(x1, yBase, z0, x1, yA, mz, x1, yBase, z1);
-      } else {
-        const mx = (x0 + x1) / 2;
-        pos.push(x0, yBase, z0, x0, yBase, z1, mx, yA, z1, x0, yBase, z0, mx, yA, z1, mx, yA, z0);
-        pos.push(x1, yBase, z0, mx, yA, z0, mx, yA, z1, x1, yBase, z0, mx, yA, z1, x1, yBase, z1);
-        pos.push(x0, yBase, z0, x1, yBase, z0, mx, yA, z0);
-        pos.push(x0, yBase, z1, mx, yA, z1, x1, yBase, z1);
-      }
-      return _roofFromPos(pos, hex);
-    };
-
-    const _hippedRoof = (pts, yBase, rH, hex) => {
-      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-      for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
-      const yA = yBase + rH, pos = [];
-      if ((x1 - x0) >= (z1 - z0)) {
-        const mz = (z0 + z1) / 2, off = (z1 - z0) / 2, rx0 = x0 + off, rx1 = x1 - off;
-        if (rx0 >= rx1) return _pyramidalRoof(pts, yBase, rH, hex);
-        pos.push(x0, yBase, z0, x1, yBase, z0, rx1, yA, mz, x0, yBase, z0, rx1, yA, mz, rx0, yA, mz);
-        pos.push(x0, yBase, z1, rx0, yA, mz, rx1, yA, mz, x0, yBase, z1, rx1, yA, mz, x1, yBase, z1);
-        pos.push(x0, yBase, z0, x0, yBase, z1, rx0, yA, mz);
-        pos.push(x1, yBase, z0, rx1, yA, mz, x1, yBase, z1);
-      } else {
-        const mx = (x0 + x1) / 2, off = (x1 - x0) / 2, rz0 = z0 + off, rz1 = z1 - off;
-        if (rz0 >= rz1) return _pyramidalRoof(pts, yBase, rH, hex);
-        pos.push(x0, yBase, z0, x0, yBase, z1, mx, yA, rz1, x0, yBase, z0, mx, yA, rz1, mx, yA, rz0);
-        pos.push(x1, yBase, z0, mx, yA, rz0, mx, yA, rz1, x1, yBase, z0, mx, yA, rz1, x1, yBase, z1);
-        pos.push(x0, yBase, z0, x1, yBase, z0, mx, yA, rz0);
-        pos.push(x0, yBase, z1, mx, yA, rz1, x1, yBase, z1);
-      }
-      return _roofFromPos(pos, hex);
-    };
 
     const _prepGeo = (g, hex) => {
       const ni = g.index ? g.toNonIndexed() : g;
@@ -1830,21 +1760,19 @@ export const createOSMGroup = (data, options = {}) => {
       return parts;
     };
 
-    const _createFacadeRelief = (pts, holes, yBase, bHeight, unitsPerMeter, bType, wallColor) => {
+    const _createFacadeRelief = (pts, holes, yBase, bHeight, unitsPerMeter, bType, wallColor, styleDef) => {
       const parts = [];
       const groundH = 4.0 * unitsPerMeter;
       const yGroundTop = yBase + groundH;
       const yTop = yBase + bHeight;
-
-      let reliefColor = wallColor;
-      if (bType === 'residential') reliefColor = new THREE.Color(wallColor).multiply(new THREE.Color('#e6decb')).getHex();
-      else if (bType === 'default') reliefColor = new THREE.Color(wallColor).multiply(new THREE.Color('#dcd4c6')).getHex();
-      else if (bType === 'office') reliefColor = new THREE.Color(wallColor).multiply(new THREE.Color('#d6cfbd')).getHex();
+      const rd = styleDef?.relief || {};
+      const tileH = (styleDef?.floorH || 3.5) * unitsPerMeter;
+      const isUrban = !['house', 'industrial'].includes(bType);
+      const reliefColor = wallColor;
 
       const processRing = (ring) => {
         const rn = ring.length - 1;
         let area = 0;
-        // Calcul de l'orientation du polygone pour déduire la normale sortante
         for (let i = 0; i < rn; i++) area += (ring[i].x * ring[i + 1].z) - (ring[i + 1].x * ring[i].z);
         const isCCW = area > 0;
 
@@ -1852,108 +1780,106 @@ export const createOSMGroup = (data, options = {}) => {
           const p1 = ring[i], p2 = ring[i + 1];
           const dx = p2.x - p1.x, dz = p2.z - p1.z;
           const edgeLen = Math.hypot(dx, dz);
-
           if (edgeLen < 1.0 * unitsPerMeter) continue;
 
-          // Correction : La normale doit pointer vers l'extérieur pour que le relief ressorte
           const nx = isCCW ? dz / edgeLen : -dz / edgeLen;
           const nz = isCCW ? -dx / edgeLen : dx / edgeLen;
           const angle = Math.atan2(nx, nz);
+          const mx = p1.x + dx / 2, mz = p1.z + dz / 2;
 
-          const mx = p1.x + dx / 2;
-          const mz = p1.z + dz / 2;
-
-          const addHorizontalBand = (yCenter, depth, height, color) => {
+          const addBand = (yCenter, depth, height, color) => {
             let box = new THREE.BoxGeometry(edgeLen, height, depth);
             box.rotateY(angle);
             box.translate(mx + nx * (depth / 2), yCenter, mz + nz * (depth / 2));
             parts.push(_prepGeo(box, color));
           };
 
-          if (['residential', 'office', 'default'].includes(bType) && bHeight > groundH + 1.0 * unitsPerMeter) {
-            // Bandeau rez-de-chaussée (séparation boutique / étages)
-            addHorizontalBand(yGroundTop, 0.2 * unitsPerMeter, 0.25 * unitsPerMeter, reliefColor);
-            // Corniche sommitale massive (finition haut de mur)
-            addHorizontalBand(yTop - 0.25 * unitsPerMeter, 0.6 * unitsPerMeter, 0.5 * unitsPerMeter, reliefColor);
+          if (isUrban && bHeight > groundH + 1.0 * unitsPerMeter) {
+            if (rd.hasCornicheGround !== false)
+              addBand(yGroundTop, 0.2 * unitsPerMeter, 0.25 * unitsPerMeter, reliefColor);
+            if (rd.hasCornicheTop) {
+              const cd = (rd.cornicheDepth || 0.6) * unitsPerMeter;
+              const ch = (rd.cornicheHeight || 0.5) * unitsPerMeter;
+              addBand(yTop - ch / 2, cd, ch, reliefColor);
+            }
 
-            if (bType === 'residential') {
-              const tileH = 3.5 * unitsPerMeter;
-              const numFloors = Math.round((bHeight - groundH) / tileH);
+            const numFloors = Math.max(1, Math.round((bHeight - groundH) / tileH));
 
-              for (let f = 0; f < numFloors; f++) {
-                // On cible le 2ème étage (f=1) et le dernier étage filant (f=numFloors-1)
-                const isEtageNoble = (f === 1);
-                const isDernierEtage = (f === numFloors - 1 && numFloors > 2);
+            for (let f = 0; f < numFloors; f++) {
+              const floorY = yGroundTop + f * tileH;
+              const isBalcony = rd.balconyEveryFloor ||
+                (rd.balconyFloors || []).some(b => b === f || (b === 'last' && f === numFloors - 1 && numFloors > 2));
 
-                if (isEtageNoble || isDernierEtage) {
-                  // Dalle du balcon filant
-                  const slabH = 0.15 * unitsPerMeter;
-                  const slabD = 0.8 * unitsPerMeter;
-                  const slabY = yGroundTop + (f * tileH) + (0.525 * unitsPerMeter);
-                  addHorizontalBand(slabY, slabD, slabH, reliefColor);
+              if (isBalcony && rd.balconyType) {
+                const slabH = 0.15 * unitsPerMeter;
+                const slabD = (rd.balconySlabDepth || 0.8) * unitsPerMeter;
+                const slabY = floorY + 0.525 * unitsPerMeter;
+                addBand(slabY, slabD, slabH, reliefColor);
 
-                  // Garde-corps en fer forgé fin et noir
+                if (rd.balconyType === 'fer_forge') {
                   const railH = 1.0 * unitsPerMeter;
                   const railD = 0.03 * unitsPerMeter;
-                  const railYCenter = slabY + slabH / 2 + railH / 2;
-
-                  // Lisse haute (Main courante)
-                  let railTop = new THREE.BoxGeometry(edgeLen, 0.03 * unitsPerMeter, railD);
-                  railTop.rotateY(angle);
-                  railTop.translate(mx + nx * (slabD - railD / 2), railYCenter + railH / 2 - 0.015 * unitsPerMeter, mz + nz * (slabD - railD / 2));
-                  parts.push(_prepGeo(railTop, 0x111111));
-
-                  // Lisse basse (Socle)
-                  let railBot = new THREE.BoxGeometry(edgeLen, 0.03 * unitsPerMeter, railD);
-                  railBot.rotateY(angle);
-                  railBot.translate(mx + nx * (slabD - railD / 2), railYCenter - railH / 2 + 0.015 * unitsPerMeter, mz + nz * (slabD - railD / 2));
-                  parts.push(_prepGeo(railBot, 0x111111));
-
-                  // Barreaux verticaux (Balustres fins)
-                  const balusterSpacing = 0.12 * unitsPerMeter;
-                  const numBalusters = Math.max(1, Math.floor(edgeLen / balusterSpacing));
-                  const balusterW = 0.015 * unitsPerMeter;
-                  const balusterH = railH - 0.06 * unitsPerMeter;
-
-                  for (let k = 0; k <= numBalusters; k++) {
-                    const t = k / numBalusters;
-                    const bx = p1.x + dx * t;
-                    const bz = p1.z + dz * t;
-
-                    let baluster = new THREE.BoxGeometry(balusterW, balusterH, balusterW);
-                    baluster.rotateY(angle);
-                    baluster.translate(bx + nx * (slabD - railD / 2), railYCenter, bz + nz * (slabD - railD / 2));
-                    parts.push(_prepGeo(baluster, 0x111111));
+                  const railYC = slabY + slabH / 2 + railH / 2;
+                  const railX = slabD - railD / 2;
+                  let rt = new THREE.BoxGeometry(edgeLen, 0.03 * unitsPerMeter, railD);
+                  rt.rotateY(angle); rt.translate(mx + nx * railX, railYC + railH / 2 - 0.015 * unitsPerMeter, mz + nz * railX);
+                  parts.push(_prepGeo(rt, 0x111111));
+                  let rb = new THREE.BoxGeometry(edgeLen, 0.03 * unitsPerMeter, railD);
+                  rb.rotateY(angle); rb.translate(mx + nx * railX, railYC - railH / 2 + 0.015 * unitsPerMeter, mz + nz * railX);
+                  parts.push(_prepGeo(rb, 0x111111));
+                  const bSpacing = 0.12 * unitsPerMeter;
+                  const nBal = Math.max(1, Math.floor(edgeLen / bSpacing));
+                  const balW = 0.015 * unitsPerMeter, balH2 = railH - 0.06 * unitsPerMeter;
+                  for (let k = 0; k <= nBal; k++) {
+                    const t = k / nBal;
+                    let bal = new THREE.BoxGeometry(balW, balH2, balW);
+                    bal.rotateY(angle);
+                    bal.translate(p1.x + dx * t + nx * railX, railYC, p1.z + dz * t + nz * railX);
+                    parts.push(_prepGeo(bal, 0x111111));
                   }
-                } else if (f > 0) {
-                  // Simples bandeaux horizontaux pour rythmer les autres étages sans balcons
-                  addHorizontalBand(yGroundTop + (f * tileH), 0.15 * unitsPerMeter, 0.15 * unitsPerMeter, reliefColor);
+                } else if (rd.balconyType === 'beton') {
+                  const pH = 0.9 * unitsPerMeter, pD = 0.08 * unitsPerMeter;
+                  let par = new THREE.BoxGeometry(edgeLen, pH, pD);
+                  par.rotateY(angle);
+                  par.translate(mx + nx * (slabD - pD / 2), slabY + slabH / 2 + pH / 2, mz + nz * (slabD - pD / 2));
+                  parts.push(_prepGeo(par, reliefColor));
                 }
+              } else if (rd.hasFloorBands !== false && f > 0) {
+                addBand(floorY, 0.15 * unitsPerMeter, 0.15 * unitsPerMeter, reliefColor);
               }
-            } else if (bType === 'default' || bType === 'office') {
-              // Simples bandeaux horizontaux entre les étages pour casser la platitude des immeubles non-résidentiels
-              const tileH = (bType === 'office' ? 4.0 : 3.5) * unitsPerMeter;
-              const numFloors = Math.round((bHeight - groundH) / tileH);
+            }
 
-              for (let f = 1; f < numFloors; f++) {
-                addHorizontalBand(yGroundTop + (f * tileH), 0.15 * unitsPerMeter, 0.15 * unitsPerMeter, reliefColor);
+            if (rd.hasTimberFrame) {
+              const tc = rd.timberColor || 0x4a3728;
+              const bW = 0.12 * unitsPerMeter, bD = 0.08 * unitsPerMeter;
+              const upperH = bHeight - groundH;
+              const nFloors = Math.max(1, Math.round(upperH / tileH));
+              for (let f = 0; f <= nFloors; f++) {
+                addBand(yGroundTop + f * tileH, bD, bW, tc);
+              }
+              const postSpacing = 1.5 * unitsPerMeter;
+              const nPosts = Math.max(1, Math.floor(edgeLen / postSpacing));
+              for (let pi = 0; pi <= nPosts; pi++) {
+                const t = pi / nPosts;
+                let post = new THREE.BoxGeometry(bW, upperH, bD);
+                post.rotateY(angle);
+                post.translate(p1.x + dx * t + nx * bD / 2, yGroundTop + upperH / 2, p1.z + dz * t + nz * bD / 2);
+                parts.push(_prepGeo(post, tc));
               }
             }
           }
 
-          // Chaînages d'angle : ajout de piliers verticaux aux coins des bâtiments pour un vrai relief 3D
-          if (['residential', 'office', 'default'].includes(bType) && bHeight > groundH) {
-            const pillarSz = 0.5 * unitsPerMeter;
-            let cornerPillar = new THREE.BoxGeometry(pillarSz, bHeight, pillarSz);
-            cornerPillar.translate(p1.x, yBase + bHeight / 2, p1.z);
-            parts.push(_prepGeo(cornerPillar, reliefColor));
+          if (rd.hasCornerPillars === true && bHeight > groundH) {
+            const sz = 0.5 * unitsPerMeter;
+            let cp = new THREE.BoxGeometry(sz, bHeight, sz);
+            cp.translate(p1.x, yBase + bHeight / 2, p1.z);
+            parts.push(_prepGeo(cp, reliefColor));
           }
         }
       };
 
       processRing(pts);
       holes.forEach(processRing);
-
       if (parts.length === 0) return null;
       const merged = mergeGeometries(parts);
       parts.forEach(p => p.dispose());
@@ -1962,15 +1888,20 @@ export const createOSMGroup = (data, options = {}) => {
 
     // ── Group buildings by type, collect geometry ────────────────────────
     const groups = {};
-    Object.keys(FACADES).forEach(t => { groups[t] = { groundGeos: [], wallGeos: [], roofGeos: [] }; });
+    Object.keys(FACADES).forEach(t => { groups[t] = { groundWinGeos: [], groundDoorGeos: [], groundShopGeos: [], wallGeos: [], roofGeos: [] }; });
 
     buildingsList.forEach((b) => {
-      const ftype = (b.buildingType && FACADES[b.buildingType]) ? b.buildingType : 'default';
-      const { tileW, tileH } = FACADES[ftype];
+      const isFixedType = ['house', 'industrial'].includes(b.buildingType);
+      const ftype = isFixedType ? b.buildingType : (b.styleId || 'haussmannien');
+      const facade = FACADES[ftype];
+      if (!facade) return;
+      const { tileW, tileH } = facade;
       const grp = groups[ftype];
 
       const groundH = 4.0 * unitsPerMeter;
-      const hasShop = b.height > groundH + 2.0 * unitsPerMeter && ['residential', 'office', 'default'].includes(b.buildingType);
+      const styleDef = STYLE_DEFS[b.styleId];
+      const hasShop = b.height > groundH + 2.0 * unitsPerMeter &&
+        !isFixedType && styleDef?.hasShop !== false;
 
       // Ajustement exact de la hauteur du bâtiment pour qu'elle corresponde à un nombre entier d'étages
       // Cela garantit que la texture n'est pas coupée et que le dernier balcon est collé sous le toit !
@@ -1982,10 +1913,13 @@ export const createOSMGroup = (data, options = {}) => {
 
       const yTop = b.y + b.height;
 
-      // Application de la devanture boutique pour les bâtiments de ville assez hauts
       if (hasShop) {
         const yGroundTop = b.y + groundH;
-        grp.groundGeos.push(_buildWall(b.points, b.holes, b.y, yGroundTop, b.wallColor, SHOP.tileW, SHOP.tileH));
+        const bSeed = Math.abs(Math.round(b.points[0].x * 73) * 1000 + Math.round(b.points[0].z * 73));
+        const { winGeos, doorGeos, shopGeos } = _buildGroundFloor(b.points, b.holes, b.y, yGroundTop, bSeed);
+        winGeos.forEach(g => grp.groundWinGeos.push(g));
+        doorGeos.forEach(g => grp.groundDoorGeos.push(g));
+        shopGeos.forEach(g => grp.groundShopGeos.push(g));
         grp.wallGeos.push(_buildWall(b.points, b.holes, yGroundTop, yTop, b.wallColor, tileW, tileH));
       } else {
         grp.wallGeos.push(_buildWall(b.points, b.holes, b.y, yTop, b.wallColor, tileW, tileH));
@@ -1994,10 +1928,6 @@ export const createOSMGroup = (data, options = {}) => {
       const rs = b.roofShape;
       if (b.roofHeight > 0 && (rs === 'pyramidal' || rs === 'pyramid'))
         grp.roofGeos.push(_pyramidalRoof(b.points, yTop, b.roofHeight, b.roofColor));
-      else if (b.roofHeight > 0 && (rs === 'gabled' || rs === 'gable' || rs === 'saltbox' || rs === 'gambrel'))
-        grp.roofGeos.push(_gabledRoof(b.points, yTop, b.roofHeight, b.roofColor));
-      else if (b.roofHeight > 0 && (rs === 'hipped' || rs === 'hip'))
-        grp.roofGeos.push(_hippedRoof(b.points, yTop, b.roofHeight, b.roofColor));
       else {
         if (['apartments', 'residential', 'house', 'default'].includes(b.buildingType)) {
           const mansardParts = _mansardRoofAndDetails(b.points, b.holes, yTop, unitsPerMeter, b.roofColor, b.buildingType, b.areaMeters, b.wallColor);
@@ -2010,20 +1940,25 @@ export const createOSMGroup = (data, options = {}) => {
       }
 
       // Ajout du relief de façade (balcons, bandeaux, corniches)
-      const facadeRelief = _createFacadeRelief(b.points, b.holes, b.y, b.height, unitsPerMeter, b.buildingType, b.wallColor);
-      if (facadeRelief) grp.roofGeos.push(facadeRelief); // Ajouté dans roofGeos pour utiliser le matériau vertexColors sans texture
+      const facadeRelief = _createFacadeRelief(b.points, b.holes, b.y, b.height, unitsPerMeter, b.buildingType, b.wallColor, STYLE_DEFS[b.styleId]);
+      if (facadeRelief) grp.roofGeos.push(facadeRelief);
     });
 
     // ── Merge and emit one mesh-pair per building type ───────────────────
-    Object.entries(groups).forEach(([ftype, { groundGeos, wallGeos, roofGeos }]) => {
-      if (groundGeos && groundGeos.length > 0) {
-        const mg = mergeGeometries(groundGeos);
+    Object.entries(groups).forEach(([ftype, { groundWinGeos, groundDoorGeos, groundShopGeos, wallGeos, roofGeos }]) => {
+      for (const [geoArr, mat, name] of [
+        [groundWinGeos,  GROUND_WIN.wallMat,  'ground_win'],
+        [groundDoorGeos, GROUND_DOOR.wallMat, 'ground_door'],
+        [groundShopGeos, GROUND_SHOP.wallMat, 'ground_shop'],
+      ]) {
+        if (!geoArr || geoArr.length === 0) continue;
+        const mg = mergeGeometries(geoArr);
         if (mg) {
-          const m = new THREE.Mesh(mg, SHOP.wallMat); // Matériau commun des boutiques
-          m.castShadow = true; m.receiveShadow = true; m.name = 'ground_floors';
+          const m = new THREE.Mesh(mg, mat);
+          m.castShadow = true; m.receiveShadow = true; m.name = name;
           group.add(m);
         }
-        groundGeos.forEach(g => g.dispose());
+        geoArr.forEach(g => g.dispose());
       }
 
       if (wallGeos.length === 0) return;
@@ -2273,55 +2208,6 @@ export const createOSMGroup = (data, options = {}) => {
     console.log(`[OSM] Rendered ${streetFurnitureList.length} street furniture items`);
   }
 
-  // === Sidewalks & Foundations 3D Rendering ===
-  if (footwaysList.length > 0) {
-    footwaysList.forEach((f) => {
-      const points = f.geometry.map((p) => latLngToScene(data, p.lat, p.lng));
-      let w = 2.0;
-      if (f.tags.width) w = parseFloat(f.tags.width) || 2.0;
-      pavingGeometries.push(createRoadGeometry(data, points, w, 0, { type: 'sidewalk' }));
-    });
-  }
-
-  if (pavingGeometries.length > 0) {
-    const compatibleGeos = pavingGeometries.map(g => {
-      const nonIndexed = g.index ? g.toNonIndexed() : g;
-      nonIndexed.computeVertexNormals(); // Recalcule pour avoir des arêtes (bordures) bien nettes
-      return nonIndexed;
-    });
-    const merged = mergeGeometries(compatibleGeos);
-    if (merged) {
-      // Coloration bicolore : surface claire, rebord de trottoir plus sombre
-      const pos = merged.attributes.position;
-      const norm = merged.attributes.normal;
-      const colors = new Float32Array(pos.count * 3);
-      const topColor = new THREE.Color(0xd4d4d4); // Gris très clair pour le dessus (béton)
-      const sideColor = new THREE.Color(0x777777); // Gris plus sombre pour les bordures
-
-      for (let i = 0; i < pos.count; i++) {
-        if (norm.getY(i) > 0.5) { // Face supérieure
-          colors[i * 3] = topColor.r; colors[i * 3 + 1] = topColor.g; colors[i * 3 + 2] = topColor.b;
-        } else { // Faces latérales (rebords)
-          colors[i * 3] = sideColor.r; colors[i * 3 + 1] = sideColor.g; colors[i * 3 + 2] = sideColor.b;
-        }
-      }
-      merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-      const mesh = new THREE.Mesh(merged, new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        map: textures.wall, // Utilisation de la texture de bruit locale
-        roughness: 0.95, // Matériau très rugueux (ne reflète pas)
-        metalness: 0.0
-      }));
-      mesh.name = "sidewalks";
-      mesh.receiveShadow = true;
-      mesh.castShadow = true;
-      group.add(mesh);
-    }
-    compatibleGeos.forEach(g => g.dispose());
-    pavingGeometries.forEach(g => g.dispose());
-  }
-
   return group;
 };
 
@@ -2360,7 +2246,8 @@ export const exportToGLB = async (data, options = {}) => {
     if (resolvedIncludeCenterTile) {
       onProgress?.('Building terrain mesh...');
       const terrainMesh = await createTerrainMesh(data, maxMeshResolution, centerTextureType);
-      const osmGroup = createOSMGroup(data);
+      const regionId = await detectFrenchRegion(data.bounds).catch(() => null);
+      const osmGroup = createOSMGroup(data, { regionProfile: REGION_PROFILES[regionId] || null });
       scene.add(terrainMesh);
       scene.add(osmGroup);
     }
@@ -2429,7 +2316,8 @@ export const exportToDAE = async (data, options = {}) => {
     if (resolvedIncludeCenterTile) {
       onProgress?.('Building terrain mesh...');
       const terrainMesh = await createTerrainMesh(data, maxMeshResolution, centerTextureType);
-      const osmGroup = createOSMGroup(data);
+      const regionId = await detectFrenchRegion(data.bounds).catch(() => null);
+      const osmGroup = createOSMGroup(data, { regionProfile: REGION_PROFILES[regionId] || null });
       scene.add(terrainMesh);
       scene.add(osmGroup);
     }

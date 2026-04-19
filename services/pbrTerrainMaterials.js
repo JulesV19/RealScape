@@ -138,7 +138,7 @@ function getFeatureMaterial(tags, featureType) {
   // ── Landuse ────────────────────────────────────────────────────────────
   if (tags.landuse) {
     if (['industrial', 'commercial', 'retail', 'railway',
-      'construction', 'garages', 'depot'].includes(tags.landuse)) return 'asphalt';
+      'construction', 'garages', 'depot', 'residential'].includes(tags.landuse)) return 'asphalt';
     if (['forest', 'farmland', 'farmyard', 'meadow', 'grass',
       'orchard', 'vineyard', 'allotments', 'flowerbed',
       'plant_nursery', 'village_green', 'recreation_ground',
@@ -386,23 +386,6 @@ export function generateSplatmap(terrainData) {
   const vehicleRoads = roads.filter(f =>
     !['footway', 'path', 'pedestrian', 'cycleway', 'steps', 'track'].includes(f.tags?.highway)
   );
-
-  // Draw footways
-  for (const f of footways) {
-    const mat = getFeatureMaterial(f.tags, f.type);
-    if (!mat || mat === 'ground') continue;
-    const pts = f.geometry.map(p => toPixel(p.lat, p.lng));
-    ctx.beginPath();
-    if (pts.length > 0) {
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    }
-    ctx.strokeStyle = MAT_COLORS[mat];
-    ctx.lineWidth = 1.5 * SCALE;
-    ctx.lineCap = 'butt';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-  }
 
   // Draw vehicle roads
   for (const f of vehicleRoads) {

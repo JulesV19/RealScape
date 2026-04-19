@@ -430,37 +430,32 @@ async function resolveReferenceMaterialsForFlavor(flavor) {
 
 // ── OSM → road material + width ────────────────────────────────────────────
 const ROAD_STYLE = {
-  motorway:       { mat: 5, halfWidthM: 9.0 },
-  motorway_link:  { mat: 5, halfWidthM: 5.0 },
-  trunk:          { mat: 5, halfWidthM: 8.0 },
-  trunk_link:     { mat: 5, halfWidthM: 5.0 },
-  primary:        { mat: 5, halfWidthM: 7.0 },
-  primary_link:   { mat: 5, halfWidthM: 4.0 },
-  secondary:      { mat: 5, halfWidthM: 6.0 },
+  motorway: { mat: 5, halfWidthM: 9.0 },
+  motorway_link: { mat: 5, halfWidthM: 5.0 },
+  trunk: { mat: 5, halfWidthM: 8.0 },
+  trunk_link: { mat: 5, halfWidthM: 5.0 },
+  primary: { mat: 5, halfWidthM: 7.0 },
+  primary_link: { mat: 5, halfWidthM: 4.0 },
+  secondary: { mat: 5, halfWidthM: 6.0 },
   secondary_link: { mat: 5, halfWidthM: 3.5 },
-  tertiary:       { mat: 5, halfWidthM: 5.0 },
-  tertiary_link:  { mat: 5, halfWidthM: 3.0 },
-  residential:    { mat: 5, halfWidthM: 4.0 },
-  living_street:  { mat: 5, halfWidthM: 3.0 },
-  unclassified:   { mat: 5, halfWidthM: 4.0 },
-  road:           { mat: 5, halfWidthM: 4.0 },
-  service:        { mat: 5, halfWidthM: 2.5 },
-  raceway:        { mat: 5, halfWidthM: 6.0 },
-  busway:         { mat: 5, halfWidthM: 4.0 },
-  pedestrian:     { mat: 7, halfWidthM: 4.0 },
-  track:          { mat: 6, halfWidthM: 2.5 },
-  footway:        { mat: 7, halfWidthM: 1.2 },
-  cycleway:       { mat: 7, halfWidthM: 1.2 },
-  path:           { mat: 6, halfWidthM: 1.0 },
+  tertiary: { mat: 5, halfWidthM: 5.0 },
+  tertiary_link: { mat: 5, halfWidthM: 3.0 },
+  residential: { mat: 5, halfWidthM: 4.0 },
+  living_street: { mat: 5, halfWidthM: 3.0 },
+  unclassified: { mat: 5, halfWidthM: 4.0 },
+  road: { mat: 5, halfWidthM: 4.0 },
+  service: { mat: 5, halfWidthM: 2.5 },
+  raceway: { mat: 5, halfWidthM: 6.0 },
+  busway: { mat: 5, halfWidthM: 4.0 },
 };
 
 // Linear waterway types → half-width in metres for terrain-layer rasterisation.
 const WATERWAY_STYLE = {
-  river:  { halfWidthM: 12.0 },
-  canal:  { halfWidthM:  6.0 },
-  stream: { halfWidthM:  2.5 },
-  drain:  { halfWidthM:  2.0 },
-  ditch:  { halfWidthM:  1.5 },
+  river: { halfWidthM: 12.0 },
+  canal: { halfWidthM: 6.0 },
+  stream: { halfWidthM: 2.5 },
+  drain: { halfWidthM: 2.0 },
+  ditch: { halfWidthM: 1.5 },
 };
 
 const CONCRETE_LANDUSES = new Set(['commercial', 'industrial', 'retail']);
@@ -473,7 +468,7 @@ const CONCRETE_LANDUSES = new Set(['commercial', 'industrial', 'retail']);
  * Layer map index = py * size + px  (row-major, bottom-left origin).
  */
 function geoToTerrainPx(lat, lng, bounds, size) {
-  const px = (lng - bounds.west)  / (bounds.east  - bounds.west)  * (size - 1);
+  const px = (lng - bounds.west) / (bounds.east - bounds.west) * (size - 1);
   const py = (lat - bounds.south) / (bounds.north - bounds.south) * (size - 1);
   return {
     px: Math.max(0, Math.min(size - 1, Math.round(px))),
@@ -571,7 +566,7 @@ function areaMatIndex(feature) {
   if (lu === 'military') return 2;
   if (CONCRETE_LANDUSES.has(lu)) return 7;
   if (lu === 'garages') return 5;
-  if (lu === 'residential') return 1;
+  if (lu === 'residential') return 5; // 5 correspond au matériau "asphalt" dans BeamNG
   if (lu === 'quarry') return 4;
   if (lu === 'railway') return 6;
   if (lu === 'reservoir' || lu === 'basin') return -1;
@@ -670,9 +665,9 @@ function colorToMaterialIndex(r, g, b) {
 
   let h = 0;
   if (delta > 0) {
-    if (max === rn)      h = ((gn - bn) / delta % 6) * 60;
+    if (max === rn) h = ((gn - bn) / delta % 6) * 60;
     else if (max === gn) h = ((bn - rn) / delta + 2) * 60;
-    else                 h = ((rn - gn) / delta + 4) * 60;
+    else h = ((rn - gn) / delta + 4) * 60;
     if (h < 0) h += 360;
   }
 
@@ -722,7 +717,7 @@ function buildLayerMapFromImage(canvas, terrainSize) {
   // Draw canvas into an offscreen canvas at terrain resolution, flipping Y so
   // (0,0) becomes SW instead of NW.
   const offscreen = document.createElement('canvas');
-  offscreen.width  = terrainSize;
+  offscreen.width = terrainSize;
   offscreen.height = terrainSize;
   const ctx = offscreen.getContext('2d');
   ctx.translate(0, terrainSize);
@@ -788,7 +783,7 @@ async function makeNormalBlob(bumpiness = 0, size = 256) {
         const gz = 1;
         const len = Math.sqrt(gx * gx + gy * gy + gz * gz);
         const i = row + x;
-        d[i * 4]     = Math.round((gx / len * 0.5 + 0.5) * 255);
+        d[i * 4] = Math.round((gx / len * 0.5 + 0.5) * 255);
         d[i * 4 + 1] = Math.round((gy / len * 0.5 + 0.5) * 255);
         d[i * 4 + 2] = Math.round((gz / len * 0.5 + 0.5) * 255);
         d[i * 4 + 3] = 255;
@@ -865,9 +860,9 @@ export async function buildTerrainMaterials(terrainData, worldSize, exportLevelN
     name: textureSetName,
     class: 'TerrainMaterialTextureSet',
     persistentId: crypto.randomUUID(),
-    baseTexSize:   [baseSize, baseSize],
+    baseTexSize: [baseSize, baseSize],
     detailTexSize: [DETAIL_SIZE, DETAIL_SIZE],
-    macroTexSize:  [DETAIL_SIZE, DETAIL_SIZE],
+    macroTexSize: [DETAIL_SIZE, DETAIL_SIZE],
   };
 
   const satellitePath = `/levels/${levelName}/art/terrains/terrain.png`;
@@ -878,44 +873,44 @@ export async function buildTerrainMaterials(terrainData, worldSize, exportLevelN
   // by all materials, so memory cost is 3 canvases instead of 3×N.
   const sharedAo = await makeAoBlob(baseSize);
   const sharedNm = await makeNormalBlob(0, baseSize);
-  const sharedR  = await makeRoughnessBlob(180, 0, baseSize);
+  const sharedR = await makeRoughnessBlob(180, 0, baseSize);
   const [sharedAoSm, sharedNmSm, sharedRSm] = await Promise.all([
     makeAoBlob(DETAIL_SIZE),
     makeNormalBlob(0, DETAIL_SIZE),
     makeRoughnessBlob(180, 0, DETAIL_SIZE),
   ]);
   textureFiles.push(
-    { path: 'shared_ao.png',    blob: sharedAo },
-    { path: 'shared_nm.png',    blob: sharedNm },
-    { path: 'shared_r.png',     blob: sharedR },
+    { path: 'shared_ao.png', blob: sharedAo },
+    { path: 'shared_nm.png', blob: sharedNm },
+    { path: 'shared_r.png', blob: sharedR },
     { path: 'shared_ao_sm.png', blob: sharedAoSm },
     { path: 'shared_nm_sm.png', blob: sharedNmSm },
-    { path: 'shared_r_sm.png',  blob: sharedRSm },
+    { path: 'shared_r_sm.png', blob: sharedRSm },
   );
 
   // Helper: neutral slot fields used by DefaultMaterial and as fallbacks.
   function neutralSlots() {
     return {
-      baseColorDetailTex:      p('shared_r_sm.png'), baseColorDetailStrength: [0, 0],
-      baseColorMacroTex:       p('shared_r_sm.png'), baseColorMacroStrength:  [0, 0],
-      normalBaseTex:           p('shared_nm.png'),   normalBaseTexSize:        baseSize,
-      normalDetailTex:         p('shared_nm_sm.png'), normalDetailStrength:    [0, 0],
-      normalMacroTex:          p('shared_nm_sm.png'), normalMacroStrength:     [0, 0],
-      roughnessBaseTex:        p('shared_r.png'),    roughnessBaseTexSize:     baseSize,
-      roughnessDetailTex:      p('shared_r_sm.png'), roughnessDetailStrength: [0, 0],
-      roughnessMacroTex:       p('shared_r_sm.png'), roughnessMacroStrength:  [0, 0],
-      aoBaseTex:               p('shared_ao.png'),   aoBaseTexSize:            baseSize,
-      aoDetailTex:             p('shared_ao_sm.png'),
-      aoMacroTex:              p('shared_ao_sm.png'),
-      heightBaseTex:           p('shared_r.png'),    heightBaseTexSize:        baseSize,
-      heightDetailTex:         p('shared_r_sm.png'),
-      heightMacroTex:          p('shared_r_sm.png'),
+      baseColorDetailTex: p('shared_r_sm.png'), baseColorDetailStrength: [0, 0],
+      baseColorMacroTex: p('shared_r_sm.png'), baseColorMacroStrength: [0, 0],
+      normalBaseTex: p('shared_nm.png'), normalBaseTexSize: baseSize,
+      normalDetailTex: p('shared_nm_sm.png'), normalDetailStrength: [0, 0],
+      normalMacroTex: p('shared_nm_sm.png'), normalMacroStrength: [0, 0],
+      roughnessBaseTex: p('shared_r.png'), roughnessBaseTexSize: baseSize,
+      roughnessDetailTex: p('shared_r_sm.png'), roughnessDetailStrength: [0, 0],
+      roughnessMacroTex: p('shared_r_sm.png'), roughnessMacroStrength: [0, 0],
+      aoBaseTex: p('shared_ao.png'), aoBaseTexSize: baseSize,
+      aoDetailTex: p('shared_ao_sm.png'),
+      aoMacroTex: p('shared_ao_sm.png'),
+      heightBaseTex: p('shared_r.png'), heightBaseTexSize: baseSize,
+      heightDetailTex: p('shared_r_sm.png'),
+      heightMacroTex: p('shared_r_sm.png'),
     };
   }
 
   // DefaultMaterial: satellite base, neutral for all other channels.
   const defaultUuid = crypto.randomUUID();
-  const defaultKey  = `DefaultMaterial-${defaultUuid}`;
+  const defaultKey = `DefaultMaterial-${defaultUuid}`;
   materialDefs[defaultKey] = {
     name: defaultKey,
     class: 'TerrainMaterial',

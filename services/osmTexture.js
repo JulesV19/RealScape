@@ -57,23 +57,24 @@ export const COLORS = {
 
   // Hard surfaces (paving)
   cobblestone: "#545454", // Cobblestone / sett (dark grey)
-  tiles: "#6e6e6e", // Paving stones / tiles (lighter grey)
+  tiles: "#505252", // Paving stones / tiles (lighter grey)
 
   // Defaults
   building: "#827d79",
   buildingStroke: "#766d67",
   road: "#404040",
   path: "#7a7a7a",
-  track: "#73685a", // Light brown dirt color
-  sidewalk: "#e3e1db", // Bright off-white concrete color
+  track: "#73685a",
+  sidewalk: "#85858587",
+  curb: "#c0bdb6",
   barrier: "#76624f",
   bridgeInfra: "#56585c",
   coastline: "#5f7680",
   ocean: "#667f86",
-  defaultLanduse: "#858585",
+  defaultLanduse: "#85858587",
 
   // Markings
-  markingWhite: "rgba(255, 255, 255, 0.7)",
+  markingWhite: "rgba(255, 255, 255, 0.85)",
   markingYellow: "rgba(255, 204, 0, 0.8)",
   markingRed: "rgba(255, 50, 50, 0.8)",
 };
@@ -485,15 +486,7 @@ const trimPolylineByDistance = (points, trimStartPx, trimEndPx) => {
   return trimmed;
 };
 
-/**
- * Get the left and right border polylines of a road, by offsetting the
- * centerline by half the road width on each side.
- */
-const getRoadBorders = (centerPoints, halfWidth, SCALE_FACTOR) => {
-  const left = getOffsetPath(centerPoints, -halfWidth, SCALE_FACTOR);
-  const right = getOffsetPath(centerPoints, halfWidth, SCALE_FACTOR);
-  return { left, right };
-};
+
 
 /**
  * Determine if a road surface is "unmarked" (no lane markings).
@@ -532,33 +525,25 @@ const getCenterLineStyle = (tags, lanesTotal, isOneWay) => {
     return null;
   }
 
-  // Motorways use white markings, not yellow
-  if (highway === "motorway" || highway === "trunk" ||
-      highway === "motorway_link" || highway === "trunk_link") {
-    return { color: COLORS.markingWhite, style: "solid", double: false };
+  // Lignes blanches pour la France
+  if (highway === "motorway" || highway === "trunk") {
+    return { color: COLORS.markingWhite, style: "dashed", double: false, dash: [3, 10] };
   }
 
-  // Major roads (primary/secondary) with enough lanes → double yellow
-  if (highway === "primary" || highway === "secondary" ||
-      highway === "primary_link" || highway === "secondary_link") {
+  if (highway === "primary" || highway === "secondary") {
     if (lanesTotal >= 4) {
-      return { color: COLORS.markingYellow, style: "solid", double: true };
+      return { color: COLORS.markingWhite, style: "solid", double: true, dash: null };
     }
-    // 2-lane primary/secondary → dashed yellow (passing zone)
-    return { color: COLORS.markingYellow, style: "dashed", double: false };
+    // Ligne T1 ou T3
+    return { color: COLORS.markingWhite, style: "dashed", double: false, dash: [3, 10] };
   }
 
-  // Tertiary → dashed yellow center line
-  if (highway === "tertiary" || highway === "tertiary_link") {
-    return { color: COLORS.markingYellow, style: "dashed", double: false };
-  }
-
-  // Residential/unclassified — only mark if 4+ lanes
-  if (highway === "residential" || highway === "unclassified") {
+  if (highway === "tertiary" || highway === "unclassified" || highway === "residential") {
     if (lanesTotal >= 4) {
-      return { color: COLORS.markingYellow, style: "dashed", double: false };
+      return { color: COLORS.markingWhite, style: "solid", double: true, dash: null };
     }
-    return null; // no center line
+    // Ligne urbaine T1
+    return { color: COLORS.markingWhite, style: "dashed", double: false, dash: [1.5, 5] };
   }
 
   // Service roads → no center line
@@ -572,11 +557,11 @@ const getCenterLineStyle = (tags, lanesTotal, isOneWay) => {
 const getEdgeLineStyle = (tags) => {
   const highway = tags.highway;
   if (highway === "motorway" || highway === "trunk" ||
-      highway === "motorway_link" || highway === "trunk_link") {
-    return { color: COLORS.markingWhite, width: 0.15 };
+    highway === "motorway_link" || highway === "trunk_link") {
+    return { color: COLORS.markingWhite, width: 0.15, dash: null };
   }
-  if (highway === "primary" || highway === "secondary") {
-    return { color: COLORS.markingWhite, width: 0.1 };
+  if (highway === "primary" || highway === "secondary" || highway === "tertiary") {
+    return { color: COLORS.markingWhite, width: 0.1, dash: [3, 3.5] };
   }
   return null;
 };
@@ -624,19 +609,19 @@ const parseWidthMeters = (value) => {
 
 const getDefaultLaneWidth = (highway) => {
   if (["motorway", "motorway_link", "trunk", "trunk_link"].includes(highway)) {
-    return 3.7;
-  }
-  if (["primary", "primary_link", "secondary", "secondary_link"].includes(highway)) {
     return 3.5;
   }
-  if (["tertiary", "tertiary_link"].includes(highway)) {
-    return 3.25;
+  if (["primary", "primary_link", "secondary", "secondary_link"].includes(highway)) {
+    return 3.2;
   }
-  if (["residential", "unclassified", "living_street"].includes(highway)) {
+  if (["tertiary", "tertiary_link"].includes(highway)) {
     return 3.0;
   }
-  if (["service"].includes(highway)) {
+  if (["residential", "unclassified", "living_street"].includes(highway)) {
     return 2.8;
+  }
+  if (["service"].includes(highway)) {
+    return 2.5;
   }
   return 3.0;
 };
@@ -696,8 +681,8 @@ const inferLaneCounts = (tags, isOneWay, highway) => {
     const inferredTotal =
       explicitTotal ||
       (highway === "motorway" || highway === "trunk" ? 4 :
-       ["motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"].includes(highway) ? 1 :
-       ["service", "track"].includes(highway) ? 1 : 2);
+        ["motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"].includes(highway) ? 1 :
+          ["service", "track"].includes(highway) ? 1 : 2);
     lanesForward = Math.ceil(inferredTotal / 2);
     lanesBackward = Math.max(1, inferredTotal - lanesForward);
   }
@@ -820,23 +805,9 @@ const getLaneLayout = (tags) => {
     return layout;
   }
 
-  const hasLeftSidewalk = tags.sidewalk === "left" || tags.sidewalk === "both";
-  const hasRightSidewalk =
-    tags.sidewalk === "right" || tags.sidewalk === "both";
-  const hasLeftCycleway =
-    tags["cycleway:left"] === "lane" || tags.cycleway === "lane";
-  const hasRightCycleway =
-    tags["cycleway:right"] === "lane" || tags.cycleway === "lane";
-
-  // Build lane list (Left to Right)
-  if (hasLeftSidewalk)
-    layout.lanes.push({ type: "sidewalk", width: 2.0, color: COLORS.sidewalk });
-  if (hasLeftCycleway)
-    layout.lanes.push({ type: "cycleway", width: 1.5, color: "#704444" });
-
   const edgeLine = getEdgeLineStyle(tags);
   if (edgeLine)
-    layout.lanes.push({ type: "edge", width: edgeLine.width, color: edgeLine.color });
+    layout.lanes.push({ type: "edge", width: edgeLine.width, color: edgeLine.color, dash: edgeLine.dash });
 
   // Vehicle Lanes (Backward)
   if (!isOneWay) {
@@ -846,7 +817,7 @@ const getLaneLayout = (tags) => {
           type: "separator",
           width: 0.12,
           color: COLORS.markingWhite,
-          dash: [3, 6],
+          dash: [1.5, 5],
         });
       layout.lanes.push({ type: "vehicle", width: defaultLaneWidth });
     }
@@ -855,10 +826,10 @@ const getLaneLayout = (tags) => {
     if (centerStyle) {
       layout.lanes.push({
         type: "divider",
-        width: 0.12,
+        width: 0.15,
         color: centerStyle.color,
         double: centerStyle.double,
-        dash: centerStyle.style === "dashed" ? [3, 6] : null,
+        dash: centerStyle.dash || null,
       });
     }
   }
@@ -870,17 +841,13 @@ const getLaneLayout = (tags) => {
         type: "separator",
         width: 0.12,
         color: COLORS.markingWhite,
-        dash: [3, 6],
+        dash: [1.5, 5],
       });
     layout.lanes.push({ type: "vehicle", width: defaultLaneWidth });
   }
 
   if (edgeLine)
     layout.lanes.push({ type: "edge", width: edgeLine.width, color: edgeLine.color });
-  if (hasRightCycleway)
-    layout.lanes.push({ type: "cycleway", width: 1.5, color: "#704444" });
-  if (hasRightSidewalk)
-    layout.lanes.push({ type: "sidewalk", width: 2.0, color: COLORS.sidewalk });
 
   // Normalize widths to fit total width
   let currentSum = layout.lanes.reduce((sum, l) => sum + l.width, 0);
@@ -974,7 +941,7 @@ const buildJunctionMap = (roads, toPixel) => {
  * Also covers the center area so that any lane markings drawn through the
  * junction are cleanly erased.
  */
-const renderJunctions = (ctx, junctions, toPixel, SCALE_FACTOR) => {
+const renderJunctions = (ctx, junctions, toPixel, SCALE_FACTOR, resolveColor) => {
   for (const [, junction] of junctions) {
     const center = junction.pixel;
     const arms = [];
@@ -1012,8 +979,9 @@ const renderJunctions = (ctx, junctions, toPixel, SCALE_FACTOR) => {
       arms.push({
         halfW, dirX, dirY, nx, ny, outAngle,
         // CW / CCW border points (as seen from above, looking outward)
-        cw:  { x: p0.x + nx * halfW, y: p0.y + ny * halfW },
+        cw: { x: p0.x + nx * halfW, y: p0.y + ny * halfW },
         ccw: { x: p0.x - nx * halfW, y: p0.y - ny * halfW },
+        road,
       });
     });
 
@@ -1075,248 +1043,150 @@ const renderJunctions = (ctx, junctions, toPixel, SCALE_FACTOR) => {
       }
     }
     ctx.closePath();
-    ctx.fillStyle = COLORS.road;
+    // Curb border around junction polygon
+    ctx.strokeStyle = resolveColor(COLORS.curb, true);
+    ctx.lineWidth = 0.6 * SCALE_FACTOR; // Fine bordure
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    // Road surface fill
+    ctx.fillStyle = resolveColor(COLORS.road, true);
     ctx.fill();
 
     // Small center stitch to hide tiny seams without producing bulbous nodes.
     ctx.beginPath();
     ctx.arc(center.x, center.y, maxHalfW * 0.28, 0, Math.PI * 2);
     ctx.fill();
+
+    // Passages piétons (style français) pour les routes urbaines
+    ctx.strokeStyle = resolveColor(COLORS.markingWhite);
+    arms.forEach(arm => {
+      const hw = arm.road.tags?.highway;
+      const hasSidewalk = arm.road.tags?.sidewalk === "both" || arm.road.tags?.sidewalk === "left" || arm.road.tags?.sidewalk === "right";
+      const isUrban = ["residential", "tertiary", "secondary", "living_street", "unclassified"].includes(hw);
+
+      if (hasSidewalk || isUrban) {
+        const offset = 1.2 * SCALE_FACTOR;
+        const p1x = arm.cw.x + arm.dirX * offset;
+        const p1y = arm.cw.y + arm.dirY * offset;
+        const p2x = arm.ccw.x + arm.dirX * offset;
+        const p2y = arm.ccw.y + arm.dirY * offset;
+
+        ctx.lineWidth = 3.0 * SCALE_FACTOR; // Bandes de 3m de long
+        ctx.setLineDash([0.5 * SCALE_FACTOR, 0.5 * SCALE_FACTOR]); // 50cm blanc, 50cm vide
+        ctx.beginPath();
+        ctx.moveTo(p1x, p1y);
+        ctx.lineTo(p2x, p2y);
+        ctx.stroke();
+      }
+    });
+    ctx.setLineDash([]);
   }
 };
 
-// --- Crosswalk Rendering ---
+// --- Road Rendering Pipeline ---
+// French Style: light granite borders, dark asphalt, distinct step edges.
 
-/**
- * Detect where footways/paths cross roads and draw crosswalk markings.
- * Also checks OSM highway=crossing nodes.
- */
-const renderCrosswalks = (ctx, roads, allFeatures, toPixel, SCALE_FACTOR) => {
-  // Collect footway/path features
-  const footways = allFeatures.filter(
-    (f) => f.type === "road" && ["footway", "path", "pedestrian", "cycleway"].includes(f.tags?.highway)
-  );
+const drawRoadCurbs = (ctx, vehicleRoads, resolveColor, toPixel, SCALE_FACTOR) => {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
-  const crossingPoints = [];
-  const crossingKeys = new Set();
+  vehicleRoads.forEach((f) => {
+    const layout = getLaneLayout(f.tags || {});
+    let centerPoints = f.geometry.map((p) => toPixel(p.lat, p.lng));
+    centerPoints = subdivideAndSmooth(centerPoints, 3);
 
-  const addCrossingPoint = (x, y, nx, ny, roadWidth) => {
-    const key = `${Math.round(x / 3)},${Math.round(y / 3)}`;
-    if (crossingKeys.has(key)) return;
-    crossingKeys.add(key);
-    crossingPoints.push({ x, y, nx, ny, roadWidth });
-  };
+    const isHighway = ["motorway", "trunk", "motorway_link", "trunk_link"].includes(f.tags?.highway);
 
-  const segmentIntersection = (a, b, c, d) => {
-    const rX = b.x - a.x;
-    const rY = b.y - a.y;
-    const sX = d.x - c.x;
-    const sY = d.y - c.y;
+    ctx.beginPath();
+    drawPathData(ctx, centerPoints);
 
-    const denom = rX * sY - rY * sX;
-    if (Math.abs(denom) < 1e-6) return null;
-
-    const uNum = (c.x - a.x) * rY - (c.y - a.y) * rX;
-    const tNum = (c.x - a.x) * sY - (c.y - a.y) * sX;
-    const u = uNum / denom;
-    const t = tNum / denom;
-
-    if (t < 0 || t > 1 || u < 0 || u > 1) return null;
-
-    return {
-      x: a.x + t * rX,
-      y: a.y + t * rY,
-    };
-  };
-
-  // Method 1: Exact polyline intersections between sidewalks and vehicle roads.
-  footways.forEach((fw) => {
-    const fwGeom = fw.geometry;
-    if (!fwGeom || fwGeom.length < 2) return;
-
-    roads.forEach((road) => {
-      const roadLayout = getLaneLayout(road.tags || {});
-      const roadHalfW = roadLayout.totalWidth / 2;
-      const roadGeom = road.geometry;
-      if (!roadGeom || roadGeom.length < 2) return;
-
-      for (let i = 0; i < fwGeom.length - 1; i++) {
-        const fA = toPixel(fwGeom[i].lat, fwGeom[i].lng);
-        const fB = toPixel(fwGeom[i + 1].lat, fwGeom[i + 1].lng);
-
-        for (let j = 0; j < roadGeom.length - 1; j++) {
-          const rA = toPixel(roadGeom[j].lat, roadGeom[j].lng);
-          const rB = toPixel(roadGeom[j + 1].lat, roadGeom[j + 1].lng);
-          const hit = segmentIntersection(fA, fB, rA, rB);
-          if (!hit) continue;
-
-          const segDx = rB.x - rA.x;
-          const segDy = rB.y - rA.y;
-          const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-          if (segLen < 1e-6) continue;
-
-          const rdx = segDx / segLen;
-          const rdy = segDy / segLen;
-          addCrossingPoint(
-            hit.x,
-            hit.y,
-            -rdy,
-            rdx,
-            roadHalfW * SCALE_FACTOR,
-          );
-        }
-      }
-    });
-  });
-
-  // Method 2: Endpoint-near-road fallback for imperfectly snapped OSM geometries.
-  footways.forEach((fw) => {
-    const fwGeom = fw.geometry;
-    if (!fwGeom || fwGeom.length < 2) return;
-
-    [fwGeom[0], fwGeom[fwGeom.length - 1]].forEach((fwPt) => {
-      const fwPx = toPixel(fwPt.lat, fwPt.lng);
-
-      roads.forEach((road) => {
-        const layout = getLaneLayout(road.tags || {});
-        const halfW = layout.totalWidth / 2;
-        const geom = road.geometry;
-        if (!geom || geom.length < 2) return;
-
-        for (let i = 0; i < geom.length - 1; i++) {
-          const a = toPixel(geom[i].lat, geom[i].lng);
-          const b = toPixel(geom[i + 1].lat, geom[i + 1].lng);
-
-          const segDx = b.x - a.x;
-          const segDy = b.y - a.y;
-          const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-          if (segLen < 1e-6) continue;
-
-          const t = Math.max(0, Math.min(1,
-            ((fwPx.x - a.x) * segDx + (fwPx.y - a.y) * segDy) / (segLen * segLen)
-          ));
-          const projX = a.x + t * segDx;
-          const projY = a.y + t * segDy;
-          const dist = Math.sqrt((fwPx.x - projX) ** 2 + (fwPx.y - projY) ** 2);
-
-          if (dist < halfW * SCALE_FACTOR * 1.25) {
-            const rdx = segDx / segLen;
-            const rdy = segDy / segLen;
-            addCrossingPoint(
-              projX,
-              projY,
-              -rdy,
-              rdx,
-              halfW * SCALE_FACTOR,
-            );
-            break;
-          }
-        }
-      });
-    });
-  });
-
-  // Draw crosswalk markings (zebra pattern)
-  crossingPoints.forEach(({ x, y, nx, ny, roadWidth }) => {
-    const stripeWidth = 0.5 * SCALE_FACTOR;
-    const stripeGap = 0.5 * SCALE_FACTOR;
-    const crosswalkLength = roadWidth * 2; // span full road width
-    const crosswalkWidth = 3.0 * SCALE_FACTOR; // 3m wide crossing
-    const numStripes = Math.floor(crosswalkWidth / (stripeWidth + stripeGap));
-
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-
-    for (let s = 0; s < numStripes; s++) {
-      const offsetAlong = -crosswalkWidth / 2 + s * (stripeWidth + stripeGap) + stripeWidth / 2;
-
-      // Direction along road (perpendicular to nx,ny)
-      const alx = -ny;
-      const aly = nx;
-
-      const cx = x + alx * offsetAlong;
-      const cy = y + aly * offsetAlong;
-
-      // Draw stripe as a rotated rectangle
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(Math.atan2(ny, nx));
-      ctx.fillRect(-crosswalkLength / 2, -stripeWidth / 2, crosswalkLength, stripeWidth);
-      ctx.restore();
+    if (isHighway) {
+      ctx.strokeStyle = resolveColor("#5c5c5c", true); // Gravel shoulder
+      ctx.lineWidth = (layout.totalWidth + 2.0) * SCALE_FACTOR;
+    } else {
+      ctx.strokeStyle = resolveColor(COLORS.curb, true);
+      ctx.lineWidth = (layout.totalWidth + 0.6) * SCALE_FACTOR; // Fine bordure en granit (30cm de chaque côté)
     }
+    ctx.stroke();
   });
 };
 
-const drawRoadWithMarkings = (ctx, feature, toPixel, SCALE_FACTOR) => {
-  const layout = getLaneLayout(feature.tags || {});
-  const geometry = feature.geometry;
+const drawRoadSurfaces = (ctx, vehicleRoads, resolveColor, toPixel, SCALE_FACTOR) => {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
-  let centerPoints = geometry.map((p) => toPixel(p.lat, p.lng));
-  centerPoints = subdivideAndSmooth(centerPoints, 3);
+  vehicleRoads.forEach((f) => {
+    const layout = getLaneLayout(f.tags || {});
+    let centerPoints = f.geometry.map((p) => toPixel(p.lat, p.lng));
+    centerPoints = subdivideAndSmooth(centerPoints, 3);
 
-  const trimDistPx = Math.max(1.5 * SCALE_FACTOR, layout.totalWidth * SCALE_FACTOR * 0.8);
-  centerPoints = trimPolylineByDistance(centerPoints, trimDistPx, trimDistPx);
-  if (centerPoints.length < 2) return;
+    const isHighway = ["motorway", "trunk", "motorway_link", "trunk_link"].includes(f.tags?.highway);
 
-  // If unmarked surface, skip all lane markings
-  if (layout.unmarked || shouldSkipLaneDetail(feature.tags || {}, layout)) return;
-
-  // Draw Individual Lane Features (markings only — base pavement drawn in Pass 2)
-  layout.lanes.forEach((lane) => {
-    if (lane.type === "vehicle") return; // Pavement already covers it
-
+    // Shadow (dépression / caniveau / gutter)
     ctx.beginPath();
-    const offsetPath = getOffsetPath(centerPoints, lane.offset, SCALE_FACTOR);
-    drawPathData(ctx, offsetPath);
+    drawPathData(ctx, centerPoints);
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.lineWidth = (layout.totalWidth + 0.2) * SCALE_FACTOR; // Fin caniveau (10cm)
+    ctx.stroke();
 
-    ctx.strokeStyle = resolveColor(lane.color || COLORS.road);
-    ctx.lineWidth = lane.width * SCALE_FACTOR;
-    ctx.lineCap = "butt";
-
-    if (lane.type === "divider") {
-      if (lane.double) {
-        // Double line (solid or dashed)
-        ctx.lineWidth = 0.1 * SCALE_FACTOR;
-        if (lane.dash) {
-          ctx.setLineDash(lane.dash.map((d) => d * SCALE_FACTOR));
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        ctx.beginPath();
-        drawPathData(ctx, getOffsetPath(centerPoints, lane.offset - 0.15, SCALE_FACTOR));
-        ctx.stroke();
-
-        ctx.beginPath();
-        drawPathData(ctx, getOffsetPath(centerPoints, lane.offset + 0.15, SCALE_FACTOR));
-        ctx.stroke();
-      } else {
-        // Single center line
-        ctx.lineWidth = 0.1 * SCALE_FACTOR;
-        if (lane.dash) {
-          ctx.setLineDash(lane.dash.map((d) => d * SCALE_FACTOR));
-        } else {
-          ctx.setLineDash([]);
-        }
-        ctx.stroke();
-      }
-    } else if (lane.type === "edge") {
-      ctx.setLineDash([]);
-      ctx.stroke();
-    } else if (lane.type === "sidewalk") {
-      // Draw sidewalk as a separate surface color (slightly raised look)
-      ctx.setLineDash([]);
-      ctx.stroke();
-    } else {
-      if (lane.dash) {
-        ctx.setLineDash(lane.dash.map((d) => d * SCALE_FACTOR));
-      } else {
-        ctx.setLineDash([]);
-      }
-      ctx.stroke();
-    }
+    // Road surface (Asphalte)
+    ctx.beginPath();
+    drawPathData(ctx, centerPoints);
+    ctx.strokeStyle = resolveColor(COLORS.road, true);
+    ctx.lineWidth = layout.totalWidth * SCALE_FACTOR;
+    ctx.stroke();
   });
+};
 
-  ctx.setLineDash([]);
+const drawRoadMarkings = (ctx, vehicleRoads, resolveColor, toPixel, SCALE_FACTOR) => {
+  vehicleRoads.forEach((f) => {
+    const layout = getLaneLayout(f.tags || {});
+    if (layout.unmarked || shouldSkipLaneDetail(f.tags || {}, layout)) return;
+    if (layout.lanes.length === 0) return;
+
+    let centerPoints = f.geometry.map((p) => toPixel(p.lat, p.lng));
+    centerPoints = subdivideAndSmooth(centerPoints, 3);
+
+    const trimDistPx = Math.max(1.5 * SCALE_FACTOR, layout.totalWidth * SCALE_FACTOR * 0.8);
+    const trimmedPoints = trimPolylineByDistance(centerPoints, trimDistPx, trimDistPx);
+    if (trimmedPoints.length < 2) return;
+
+    layout.lanes.forEach((lane) => {
+      if (lane.type === "vehicle") return;
+
+      const offsetPath = getOffsetPath(trimmedPoints, lane.offset, SCALE_FACTOR);
+      ctx.beginPath();
+      drawPathData(ctx, offsetPath);
+      // Style français: marquage blanc dominant
+      ctx.strokeStyle = resolveColor(lane.color || "#ffffff");
+      ctx.lineWidth = lane.width * SCALE_FACTOR;
+      ctx.lineCap = "butt";
+
+      if (lane.type === "divider") {
+        if (lane.double) {
+          ctx.lineWidth = 0.15 * SCALE_FACTOR;
+          ctx.setLineDash(lane.dash ? lane.dash.map((d) => d * SCALE_FACTOR) : []);
+          ctx.beginPath();
+          drawPathData(ctx, getOffsetPath(trimmedPoints, lane.offset - 0.2, SCALE_FACTOR));
+          ctx.stroke();
+          ctx.beginPath();
+          drawPathData(ctx, getOffsetPath(trimmedPoints, lane.offset + 0.2, SCALE_FACTOR));
+          ctx.stroke();
+        } else {
+          ctx.lineWidth = 0.15 * SCALE_FACTOR;
+          ctx.setLineDash(lane.dash ? lane.dash.map((d) => d * SCALE_FACTOR) : []);
+          ctx.stroke();
+        }
+      } else if (lane.type === "edge" || lane.type === "sidewalk") {
+        ctx.setLineDash(lane.dash ? lane.dash.map((d) => d * SCALE_FACTOR) : []);
+        ctx.stroke();
+      } else {
+        ctx.setLineDash(lane.dash ? lane.dash.map((d) => d * SCALE_FACTOR) : []);
+        ctx.stroke();
+      }
+    });
+    ctx.setLineDash([]);
+  });
 };
 
 const renderFeaturesToCanvas = (
@@ -1616,49 +1486,17 @@ const renderFeaturesToCanvas = (
   // Build junction map for vehicle roads
   const junctions = buildJunctionMap(vehicleRoads, (lat, lng) => toPixel(lat, lng));
 
-  // Pass 1: Draw footways/paths (BEFORE roads so pavement paints over crossings)
-  ctx.lineCap = "butt";
-  ctx.lineJoin = "round";
-  roads.forEach((f) => {
-    const highway = f.tags?.highway;
-    if (
-      ["footway", "path", "pedestrian", "cycleway", "steps", "track"].includes(highway)
-    ) {
-      let pts = f.geometry.map((p) => toPixel(p.lat, p.lng));
-      pts = subdivideAndSmooth(pts, 3);
+  // Pass 2: Road curbs
+  drawRoadCurbs(ctx, vehicleRoads, resolveColor, toPixel, SCALE_FACTOR);
 
-      ctx.beginPath();
-      drawPathData(ctx, pts);
-      if (f.tags?.footway === "sidewalk" || f.tags?.surface === "concrete") {
-        ctx.strokeStyle = resolveColor(COLORS.sidewalk);
-      } else if (["footway", "path", "track"].includes(highway)) {
-        ctx.strokeStyle = resolveColor(COLORS.track);
-      } else {
-        ctx.strokeStyle = resolveColor(COLORS.path);
-      }
-      ctx.lineWidth = 1.5 * SCALE_FACTOR;
-      ctx.stroke();
-    }
-  });
+  // Pass 3: Road surfaces
+  drawRoadSurfaces(ctx, vehicleRoads, resolveColor, toPixel, SCALE_FACTOR);
 
-  // Pass 2: Draw vehicle road base pavement (no markings yet)
-  vehicleRoads.forEach((f) => {
-    const layout = getLaneLayout(f.tags || {});
-    const geometry = f.geometry;
-    let centerPoints = geometry.map((p) => toPixel(p.lat, p.lng));
-    centerPoints = subdivideAndSmooth(centerPoints, 3);
+  // Pass 4: Junction cleanup
+  renderJunctions(ctx, junctions, (lat, lng) => toPixel(lat, lng), SCALE_FACTOR, resolveColor);
 
-    ctx.beginPath();
-    drawPathData(ctx, centerPoints);
-    ctx.strokeStyle = resolveColor(COLORS.road);
-    ctx.lineWidth = layout.totalWidth * SCALE_FACTOR;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
-  });
-
-  // Pass 3: Keep junction pavement fill behavior for cleaner intersections.
-  renderJunctions(ctx, junctions, (lat, lng) => toPixel(lat, lng), SCALE_FACTOR);
+  // Pass 5: Road markings
+  drawRoadMarkings(ctx, vehicleRoads, resolveColor, toPixel, SCALE_FACTOR);
 
   // 3. Draw Buildings
   const buildings = features.filter((f) => f.type === "building");
@@ -1731,7 +1569,8 @@ export const generateOSMTexture = async (terrainData, options = {}) => {
   onProgress?.("Baking procedural noise...");
   // Cap texture at 8192px max to avoid excessive RGBA buffers.
   const MAX_TEX_SIZE = 8192;
-  const requestedSize = Number(options.outputSize || terrainData.width || 1024);
+  const TEXTURE_MULTIPLIER = 4; // Upscale 4x pour éviter la pixelisation des lignes
+  const requestedSize = Number(options.outputSize || (terrainData.width * TEXTURE_MULTIPLIER) || 4096);
   const targetSize = Math.max(1, Math.min(MAX_TEX_SIZE, Math.floor(requestedSize)));
   const SCALE_FACTOR = targetSize / Math.max(1, terrainData.width);
   const canvas = document.createElement("canvas");
@@ -1779,7 +1618,8 @@ export const generateHybridTexture = async (terrainData, options = {}) => {
   const onProgress = options.onProgress;
   onProgress?.("Blending satellite imagery with vector overlays...");
   const MAX_TEX_SIZE = 8192;
-  const requestedSize = Number(options.outputSize || terrainData.width || 1024);
+  const TEXTURE_MULTIPLIER = 4; // Upscale 4x pour éviter la pixelisation
+  const requestedSize = Number(options.outputSize || (terrainData.width * TEXTURE_MULTIPLIER) || 4096);
   const targetSize = Math.max(1, Math.min(MAX_TEX_SIZE, Math.floor(requestedSize)));
   const SCALE_FACTOR = targetSize / Math.max(1, terrainData.width);
   const canvas = document.createElement("canvas");

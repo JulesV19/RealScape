@@ -1,6 +1,8 @@
 <script setup>
 import { shallowRef, watch, toRaw, onUnmounted } from 'vue';
 import { createOSMGroup } from '../../services/export3d';
+import { detectFrenchRegion } from '../../services/regionDetector';
+import { REGION_PROFILES } from '../../services/buildingStyles';
 
 const props = defineProps({
   terrainData: { required: true },
@@ -54,7 +56,7 @@ const buildPreviewOptions = (data) => {
   };
 };
 
-const rebuildGroup = (data) => {
+const rebuildGroup = async (data) => {
   if (group.value) {
     disposeGroup(group.value);
     group.value = null;
@@ -62,7 +64,10 @@ const rebuildGroup = (data) => {
 
   if (data) {
     const rawData = toRaw(data);
-    group.value = createOSMGroup(rawData, buildPreviewOptions(rawData));
+    const opts = buildPreviewOptions(rawData);
+    const regionId = await detectFrenchRegion(rawData.bounds).catch(() => null);
+    opts.regionProfile = REGION_PROFILES[regionId] || null;
+    group.value = createOSMGroup(rawData, opts);
   }
 };
 

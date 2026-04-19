@@ -4,6 +4,8 @@ import { encode } from 'fast-png';
 import { exportTer } from './exportTer.js';
 import { buildTerrainMaterials } from './osmTerrainMaterials.js';
 import { createOSMGroup, createSurroundingMeshes, SCENE_SIZE } from './export3d.js';
+import { detectFrenchRegion } from './regionDetector.js';
+import { REGION_PROFILES } from './buildingStyles.js';
 import { prepareCroppedTerrainData } from './cropTerrain.js';
 import { applyBuildingFoundations } from './buildingFoundations.js';
 import { ColladaExporter } from './ColladaExporter.js';
@@ -421,11 +423,12 @@ async function generateOSMObjectsDAE(terrainData, worldSize) {
 
   // Barriers are exported as native TSStatic objects in BeamNG scene JSON,
   // not baked into the generic OSM DAE mesh.
+  const regionId = await detectFrenchRegion(terrainData.bounds).catch(() => null);
   const osmGroup = createOSMGroup(terrainData, {
     includeVegetation: false,
     includeBarriers: false,
-    // Keep exact building footprints in exported levels.
     simplifyBuildingFootprints: false,
+    regionProfile: REGION_PROFILES[regionId] || null,
   });
 
   // Verify there is at least one mesh child — an empty group means no features

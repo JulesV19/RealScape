@@ -15,7 +15,7 @@ import { createLocalToWGS84 } from "./geoUtils";
 // Constants
 const TILE_SIZE = 256;
 export const TERRAIN_ZOOM = 15; // Fixed high detail zoom level for Terrain
-const SATELLITE_ZOOM = 17; // Higher detail zoom level for Satellite (approx 1.2m/px)
+const SATELLITE_ZOOM = 18; // Very high detail zoom level for Satellite (approx 0.6m/px)
 const TILE_API_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
 const SATELLITE_API_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile";
