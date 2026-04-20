@@ -390,9 +390,14 @@ async function generateOSMObjectsDAE(terrainData, worldSize, buildingStyleOverri
   // Barriers are exported as native TSStatic objects in BeamNG scene JSON,
   // not baked into the generic OSM DAE mesh.
   const regionId = buildingStyleOverride ? null : await detectFrenchRegion(terrainData.bounds).catch(() => null);
+
   const regionProfile = buildingStyleOverride
-    ? { styles: buildingStyleOverride, roofColors: {} }
+    ? {
+      styles: buildingStyleOverride.styles || buildingStyleOverride,
+      roofColors: buildingStyleOverride.roofColors || (REGION_PROFILES[regionId]?.roofColors || {})
+    }
     : (REGION_PROFILES[regionId] || null);
+
   const osmGroup = createOSMGroup(terrainData, {
     includeVegetation: false,
     includeBarriers: false,

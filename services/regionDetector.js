@@ -8,17 +8,21 @@ const isParisIntramuros = (lat, lng) =>
   lng >= PARIS_INTRAMUROS.minLng && lng <= PARIS_INTRAMUROS.maxLng;
 
 const REGION_PATTERNS = [
-  [/île-de-france|paris/i,                                  'ile_de_france'],
-  [/normandie/i,                                            'normandie'],
-  [/grand[ -]est|alsace|bas-rhin|haut-rhin/i,               'alsace'],
-  [/bretagne/i,                                             'bretagne'],
-  [/provence|côte.d.azur|alpes-maritimes|var\b|bouches/i,   'paca'],
+  [/île-de-france|paris/i, 'ile_de_france'],
+  [/normandie/i, 'normandie'],
+  [/grand[ -]est|alsace|bas-rhin|haut-rhin/i, 'alsace'],
+  [/bretagne/i, 'bretagne'],
+  [/provence|côte.d.azur|alpes-maritimes|var\b|bouches/i, 'paca'],
+  [/occitanie|languedoc|midi-pyrénées/i, 'occitanie'],
+  [/nouvelle-aquitaine|aquitaine|gironde/i, 'nouvelle_aquitaine'],
+  [/auvergne|rhône-alpes/i, 'generic_france'], // Fallback sur générique mais détecté
+  [/hauts-de-france|nord-pas-de-calais|picardie/i, 'generic_france']
 ];
 
 export async function detectFrenchRegion(bounds) {
   const lat = (bounds.north + bounds.south) / 2;
-  const lng  = (bounds.east  + bounds.west)  / 2;
-  const key  = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+  const lng = (bounds.east + bounds.west) / 2;
+  const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
   if (_cache.has(key)) return _cache.get(key);
 
   if (isParisIntramuros(lat, lng)) {
@@ -33,7 +37,7 @@ export async function detectFrenchRegion(bounds) {
     );
     const { address } = await res.json();
     const haystack = [address.state, address.region, address.county].filter(Boolean).join(' ');
-    const match  = REGION_PATTERNS.find(([re]) => re.test(haystack));
+    const match = REGION_PATTERNS.find(([re]) => re.test(haystack));
     const region = match ? match[1] : 'generic_france';
     _cache.set(key, region);
     return region;

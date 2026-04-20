@@ -794,7 +794,7 @@ export const createOSMGroup = (data, options = {}) => {
    * Advanced Building Configuration Parser
    * Inspired by OSM2World's LevelAndHeightData and BuildingDefaults
    */
-  const getBuildingConfig = (tags, areaMeters = 0) => {
+  const getBuildingConfig = (tags, areaMeters = 0, seed = 0, regionProfile = null) => {
     const DEFAULT_HEIGHT_LEVEL = 3.0;
 
     let buildingLevels =
@@ -919,19 +919,13 @@ export const createOSMGroup = (data, options = {}) => {
     else if (['industrial', 'warehouse', 'storage', 'factory', 'barn'].includes(type))
       buildingType = 'industrial';
 
-    // Palettes de couleurs de toits adaptées au style Haussmannien (Zinc/Ardoise)
-    const houseRoofColors = [0x8b3a3a, 0x7a3e3e, 0x6e4b4b, 0x5c5c5c, 0x4a4a4a, 0x734a36]; // Tuiles, ardoise, marron
-    const indRoofColors = [0xa0a0a0, 0x8c8c8c, 0x787878, 0xced4da, 0xd1d5db]; // Tôle, goudron, toits clairs
-    const aptRoofColors = [0x6c767e, 0x58626a, 0x7b858f, 0x4a545c, 0x606a73]; // ZINC ET ARDOISE (Plus clair et bleuté)
-    const officeRoofColors = [0x5c666b, 0x475056, 0x6a737b, 0x3d4348, 0xd1d5db]; // Zinc ou Toits plats
+    const styleId = ['house', 'industrial'].includes(buildingType)
+      ? buildingType
+      : pickStyle(seed);
 
-    const rIdx = Math.floor(areaMeters * 17) % 100; // Index déterministe basé sur la surface
     let defaultRoofColor = 0x3a3a3a;
-
-    if (buildingType === 'house') defaultRoofColor = houseRoofColors[rIdx % houseRoofColors.length];
-    else if (buildingType === 'industrial') defaultRoofColor = indRoofColors[rIdx % indRoofColors.length];
-    else if (buildingType === 'office') defaultRoofColor = officeRoofColors[rIdx % officeRoofColors.length];
-    else defaultRoofColor = aptRoofColors[rIdx % aptRoofColors.length];
+    const palette = regionProfile?.roofColors?.[styleId] || regionProfile?.roofColors?.[buildingType] || regionProfile?.roofColors?.['default'] || [0x3a3a3a];
+    defaultRoofColor = palette[seed % palette.length];
 
     let roofColor = parseO2WColor(
       tags["roof:colour"] || tags["roof:color"] || tags["building:roof:colour"],
@@ -955,6 +949,7 @@ export const createOSMGroup = (data, options = {}) => {
       roofHeight: roofHeight * unitsPerMeter,
       levels: buildingLevels,
       buildingType,
+      styleId,
       hasExplicitColor: !!(tags["building:colour"] || tags["building:color"] || tags.colour || tags.color),
     };
   };
@@ -1007,12 +1002,11 @@ export const createOSMGroup = (data, options = {}) => {
         return;
       }
 
-      const config = getBuildingConfig(f.tags, areaMeters);
-      // Assign architectural style: fixed for house/industrial, regional pick for urban types
       const bSeed = Math.abs(Math.round(points[0].x * 100) * 1000 + Math.round(points[0].z * 100));
-      const styleId = ['house', 'industrial'].includes(config.buildingType)
-        ? config.buildingType
-        : pickStyle(bSeed);
+      const config = getBuildingConfig(f.tags, areaMeters, bSeed, regionProfile);
+
+      const styleId = config.styleId;
+
       // Apply style wall-color palette when OSM doesn't specify a colour
       if (!config.hasExplicitColor && STYLE_DEFS[styleId]?.wallColors) {
         const palette = STYLE_DEFS[styleId].wallColors;
@@ -1035,7 +1029,6 @@ export const createOSMGroup = (data, options = {}) => {
         height: Math.max(0.1, config.height - config.minHeight),
         areaMeters,
         ...config,
-        styleId,
       };
       buildingsList.push(buildingData);
     } else if (includeStreetFurniture && f.type === "street_furniture" && f.geometry.length === 1) {
@@ -1925,13 +1918,9 @@ export const createOSMGroup = (data, options = {}) => {
       } else {
         // Roof driven by architectural style
         const roofCfg = STYLE_DEFS[b.styleId]?.roof
-          ?? (b.buildingType === 'house' ? { shape: 'hip', height: 3.0, colors: [0x8b3a3a, 0x7a3e3e, 0x734a36, 0x6e4b4b] }
-            : b.buildingType === 'industrial' ? { shape: 'flat', colors: [0xa0a0a0, 0x8c8c8c, 0x787878] }
-              : { shape: 'flat', colors: [0x484840] });
+          ?? (b.buildingType === 'house' ? { shape: 'hip', height: 3.0 } : { shape: 'flat' });
 
-        const rColorPalette = regionProfile?.roofColors?.[b.styleId] ?? roofCfg.colors;
-        const rColorIdx = Math.abs(Math.round(b.points[0].x * 100 + b.points[0].z * 73)) % rColorPalette.length;
-        const rColor = rColorPalette[rColorIdx];
+        const rColor = b.roofColor;
 
         if (roofCfg.shape === 'mansard') {
           const mansardParts = _mansardRoofAndDetails(b.points, b.holes, yTop, unitsPerMeter, rColor, b.buildingType, b.areaMeters, b.wallColor, b.styleId);
@@ -2292,11 +2281,13 @@ export const exportToGLB = async (data, options = {}) => {
       const terrainMesh = await createTerrainMesh(data, maxMeshResolution, centerTextureType);
       const regionId = buildingStyleOverride ? null : await detectFrenchRegion(data.bounds).catch(() => null);
       const regionProfile = buildingStyleOverride
-        ? { styles: buildingStyleOverride, roofColors: {} }
+        ? {
+          styles: buildingStyleOverride.styles || buildingStyleOverride,
+          roofColors: buildingStyleOverride.roofColors || (REGION_PROFILES[regionId]?.roofColors || {})
+        }
         : (REGION_PROFILES[regionId] || null);
       const osmGroup = createOSMGroup(data, {
         regionProfile,
-        includeRoadMeshes: true
       });
       osmGroup.name = 'osm_buildings';
       osmGroup.userData = { regionId: regionId ?? 'generic_france' };
@@ -2371,11 +2362,13 @@ export const exportToDAE = async (data, options = {}) => {
       const terrainMesh = await createTerrainMesh(data, maxMeshResolution, centerTextureType);
       const regionId = buildingStyleOverride ? null : await detectFrenchRegion(data.bounds).catch(() => null);
       const regionProfile = buildingStyleOverride
-        ? { styles: buildingStyleOverride, roofColors: {} }
+        ? {
+          styles: buildingStyleOverride.styles || buildingStyleOverride,
+          roofColors: buildingStyleOverride.roofColors || (REGION_PROFILES[regionId]?.roofColors || {})
+        }
         : (REGION_PROFILES[regionId] || null);
       const osmGroup = createOSMGroup(data, {
         regionProfile,
-        includeRoadMeshes: true
       });
       scene.add(terrainMesh);
       scene.add(osmGroup);

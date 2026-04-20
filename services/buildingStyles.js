@@ -6,105 +6,159 @@ export const REGION_PROFILES = {
   paris_intramuros: {
     styles: [
       { id: 'haussmannien', weight: 0.65 },
-      { id: 'art_deco',     weight: 0.15 },
-      { id: 'classique',    weight: 0.12 },
-      { id: 'moderne',      weight: 0.08 },
+      { id: 'art_deco', weight: 0.15 },
+      { id: 'classique', weight: 0.12 },
+      { id: 'moderne', weight: 0.08 },
     ],
     // Tout en zinc/ardoise, signature parisienne
     roofColors: {
-      classique:  [0x5a646a, 0x4a5460, 0x3e484e, 0x6a747a],
-      art_deco:   [0x3c3c38, 0x2e2e2c, 0x484840],
-      moderne:    [0x4a5460, 0x3e484e, 0x585e66],
+      classique: [0x5a646a, 0x4a5460, 0x3e484e, 0x6a747a],
+      art_deco: [0x3c3c38, 0x2e2e2c, 0x484840],
+      moderne: [0x4a5460, 0x3e484e, 0x585e66],
+      house: [0x5a646a, 0x4a5460, 0x3e484e], // Ardoise zinc
+      industrial: [0xa0a0a0, 0x8c8c8c, 0x787878, 0xced4da],
+      default: [0x4a5460, 0x3e484e]
     },
   },
   ile_de_france: {
     styles: [
-      { id: 'classique',    weight: 0.28 },
-      { id: 'annees60',     weight: 0.28 },
-      { id: 'moderne',      weight: 0.18 },
+      { id: 'classique', weight: 0.28 },
+      { id: 'annees60', weight: 0.28 },
+      { id: 'moderne', weight: 0.18 },
       { id: 'contemporain', weight: 0.14 },
-      { id: 'art_deco',     weight: 0.12 },
+      { id: 'art_deco', weight: 0.12 },
     ],
     // Ardoise sombre, héritage parisien dilué
     roofColors: {
-      classique:    [0x545e62, 0x46505a, 0x606870],
-      art_deco:     [0x3c3c38, 0x2e2e2c, 0x484840],
-      moderne:      [0x484840, 0x3a3a38, 0x545450],
+      classique: [0x545e62, 0x46505a, 0x606870],
+      art_deco: [0x3c3c38, 0x2e2e2c, 0x484840],
+      moderne: [0x484840, 0x3a3a38, 0x545450],
       contemporain: [0xb0b8c0, 0xa8b0b8, 0xbcc4cc],
-      annees60:     [0x3a3a38, 0x2e2e2c, 0x484840],
+      annees60: [0x3a3a38, 0x2e2e2c, 0x484840],
+      house: [0x7a3e3e, 0x6e4b4b, 0x5c5c5c, 0x4a4a4a], // Mix tuiles/ardoise
+      industrial: [0xa0a0a0, 0x8c8c8c, 0x787878, 0xced4da],
+      default: [0x545e62, 0x46505a]
     },
   },
   normandie: {
     styles: [
-      { id: 'normand',   weight: 0.45 },
+      { id: 'normand', weight: 0.45 },
       { id: 'classique', weight: 0.25 },
-      { id: 'medieval',  weight: 0.15 },
-      { id: 'moderne',   weight: 0.15 },
+      { id: 'medieval', weight: 0.15 },
+      { id: 'moderne', weight: 0.15 },
     ],
     // Ardoise normande (gris foncé chaud) + tuiles rouges
     roofColors: {
       classique: [0x45484a, 0x3c3e40, 0x7a3030, 0x6a2828, 0x52484a],
-      moderne:   [0x45484a, 0x3c3e40, 0x404244],
-      medieval:  [0x7a3030, 0x6a2828, 0x8a3838],
+      moderne: [0x45484a, 0x3c3e40, 0x404244],
+      medieval: [0x7a3030, 0x6a2828, 0x8a3838],
+      house: [0x45484a, 0x3c3e40, 0x7a3030, 0x6a2828],
+      industrial: [0x8c8c8c, 0x787878, 0x5c5c5c],
+      default: [0x45484a, 0x3c3e40]
     },
   },
   alsace: {
     styles: [
-      { id: 'alsacien',  weight: 0.50 },
+      { id: 'alsacien', weight: 0.50 },
       { id: 'classique', weight: 0.20 },
-      { id: 'medieval',  weight: 0.15 },
-      { id: 'moderne',   weight: 0.15 },
+      { id: 'medieval', weight: 0.15 },
+      { id: 'moderne', weight: 0.15 },
     ],
     // Tuiles rouges omniprésentes en Alsace
     roofColors: {
       classique: [0xa03828, 0x8a3020, 0xb04030, 0x903020],
-      moderne:   [0x983020, 0x883020, 0xa03828],
-      medieval:  [0xa03828, 0x8a3020, 0x903020],
+      moderne: [0x983020, 0x883020, 0xa03828],
+      medieval: [0xa03828, 0x8a3020, 0x903020],
+      house: [0xa03828, 0x8a3020, 0xb04030, 0x903020], // Tuiles rouges
+      industrial: [0x8c8c8c, 0x787878, 0x903020],
+      default: [0xa03828, 0x8a3020]
     },
   },
   bretagne: {
     styles: [
-      { id: 'breton',    weight: 0.45 },
+      { id: 'breton', weight: 0.45 },
       { id: 'classique', weight: 0.20 },
-      { id: 'medieval',  weight: 0.20 },
-      { id: 'moderne',   weight: 0.15 },
+      { id: 'medieval', weight: 0.20 },
+      { id: 'moderne', weight: 0.15 },
     ],
     // Ardoise gris bleuté, caractéristique bretonne
     roofColors: {
       classique: [0x3a3e45, 0x454950, 0x2e3238, 0x40444a],
-      moderne:   [0x3a3e45, 0x454950, 0x40444a],
-      medieval:  [0x3a3e45, 0x2e3238, 0x404448],
+      moderne: [0x3a3e45, 0x454950, 0x40444a],
+      medieval: [0x3a3e45, 0x2e3238, 0x404448],
+      house: [0x3a3e45, 0x454950, 0x2e3238, 0x40444a], // Ardoise 100%
+      industrial: [0x787878, 0x5c5c5c, 0x8c8c8c],
+      default: [0x3a3e45, 0x454950]
     },
   },
   paca: {
     styles: [
-      { id: 'provencal',    weight: 0.45 },
-      { id: 'classique',    weight: 0.25 },
+      { id: 'provencal', weight: 0.45 },
+      { id: 'classique', weight: 0.25 },
       { id: 'contemporain', weight: 0.15 },
-      { id: 'moderne',      weight: 0.15 },
+      { id: 'moderne', weight: 0.15 },
     ],
     // Tuiles canal orangées partout, membrane blanche pour le contemporain
     roofColors: {
-      classique:    [0xc06030, 0xb05828, 0xd07040, 0xb86838, 0xc87848],
-      moderne:      [0xb85e30, 0xa85828, 0xc06030],
+      classique: [0xc06030, 0xb05828, 0xd07040, 0xb86838, 0xc87848],
+      moderne: [0xb85e30, 0xa85828, 0xc06030],
       contemporain: [0xd8d0c8, 0xc8c0b8, 0xe0d8d0],
+      house: [0xc06030, 0xb05828, 0xd07040, 0xb86838], // Tuiles canal
+      industrial: [0xd8d0c8, 0x8c8c8c, 0xc06030],
+      default: [0xc06030, 0xb05828]
+    },
+  },
+  occitanie: {
+    styles: [
+      { id: 'provencal', weight: 0.35 },
+      { id: 'classique', weight: 0.30 },
+      { id: 'moderne', weight: 0.20 },
+      { id: 'medieval', weight: 0.15 },
+    ],
+    roofColors: {
+      classique: [0xc06030, 0xb05828, 0x8a3020, 0xb86838],
+      moderne: [0xb85e30, 0xa85828, 0x545450],
+      medieval: [0xa03828, 0x8a3020, 0xb05828],
+      provencal: [0xc06030, 0xb05828, 0xd07040],
+      house: [0xc06030, 0xb05828, 0x8a3020, 0xb86838], // Briques toulousaines et tuiles
+      industrial: [0x8c8c8c, 0x787878, 0xc06030],
+      default: [0xb05828, 0x8a3020]
+    }
+  },
+  nouvelle_aquitaine: {
+    styles: [
+      { id: 'classique', weight: 0.40 },
+      { id: 'moderne', weight: 0.30 },
+      { id: 'contemporain', weight: 0.15 },
+      { id: 'medieval', weight: 0.15 },
+    ],
+    roofColors: {
+      classique: [0xb86838, 0xc87848, 0x8a3020, 0x5a646a], // Tuiles et un peu d'ardoise (nord)
+      moderne: [0xb85e30, 0xa85828, 0x4a5460],
+      medieval: [0x8a3020, 0x903020],
+      house: [0xb86838, 0xc87848, 0x8a3020],
+      industrial: [0xa0a0a0, 0x8c8c8c, 0x787878],
+      default: [0xb86838, 0xc87848]
     },
   },
   generic_france: {
     styles: [
-      { id: 'classique',    weight: 0.35 },
-      { id: 'annees60',     weight: 0.22 },
-      { id: 'moderne',      weight: 0.20 },
+      { id: 'classique', weight: 0.35 },
+      { id: 'annees60', weight: 0.22 },
+      { id: 'moderne', weight: 0.20 },
       { id: 'contemporain', weight: 0.13 },
-      { id: 'annees80',     weight: 0.10 },
+      { id: 'annees80', weight: 0.10 },
     ],
     // Ardoise moyenne + tuiles selon les quartiers
     roofColors: {
-      classique:    [0x58626a, 0x4a5460, 0x78503a, 0x6a4430, 0x505a60],
-      moderne:      [0x484840, 0x3c3c38, 0x545450],
+      classique: [0x58626a, 0x4a5460, 0x78503a, 0x6a4430, 0x505a60],
+      moderne: [0x484840, 0x3c3c38, 0x545450],
       contemporain: [0xb8c0c8, 0xaab2ba, 0xc0c8d0],
-      annees60:     [0x3a3a38, 0x2e2e2c, 0x484840],
-      annees80:     [0x505050, 0x444444, 0x5c5c5c],
+      annees60: [0x3a3a38, 0x2e2e2c, 0x484840],
+      annees80: [0x505050, 0x444444, 0x5c5c5c],
+      house: [0x8b3a3a, 0x7a3e3e, 0x6e4b4b, 0x5c5c5c, 0x4a4a4a, 0x734a36],
+      industrial: [0xa0a0a0, 0x8c8c8c, 0x787878, 0xced4da, 0xd1d5db],
+      default: [0x58626a, 0x4a5460, 0x78503a]
     },
   },
 };
