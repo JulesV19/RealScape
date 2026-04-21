@@ -74,7 +74,7 @@ npm run dev
 
 Toutes les données de terrain, de hauteur et modèles 3D sont des estimations basées sur les jeux de données satellites et vectoriels disponibles. Cet outil est destiné au **modding** et à la création artistique. Il ne doit pas être utilisé pour l'ingénierie ou la navigation dans le monde réel.
 
-**En cours de développement :** Ce projet est actuellement en plein développement. Veuillez noter que les rendus 3D exacts de certains bâtiments complexes, **notamment les monuments historiques**, ne sont pas encore possibles à ce stade.
+**En cours de développement :** Ce projet est actuellement en plein développement. Veuillez noter que les rendus 3D exacts de certains bâtiments complexes, **notamment les monuments historiques**, ne sont pas encore possibles à ce stade. Le moteur de choix des types de bâtiments et couleurs est imparfait, n'hésitez pas à faire remonter les problèmes recontrés !
 
 ---
 
